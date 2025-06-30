@@ -7,12 +7,12 @@ import numpy as np
 import logging
 import datetime
 
-from transformers.frame_difference import FrameDifferencer
-from transformers.temporal_analyzer import TemporalAnalyzer
-from transformers.patch_extractor import PatchExtractor
-from loaders.data_storage import OptimizedDataStorage
-from loaders.cache_manager import CacheManager
-from validation.integrity_validator import DataIntegrityValidator
+from .transformers.frame_difference import FrameDifferencer
+from .transformers.temporal_analyzer import TemporalAnalyzer
+from .transformers.patch_extractor import PatchExtractor
+from ..loaders.data_storage import OptimizedDataStorage
+from ..loaders.cache_manager import CacheManager
+from ..validation.integrity_validator import DataIntegrityValidator
 
 
 class EuclidProcessor:

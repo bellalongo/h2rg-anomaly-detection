@@ -6,7 +6,7 @@ from datetime import datetime
 import logging
 import hashlib
 
-from validation.integrity_validator import DataIntegrityValidator
+from ..validation.integrity_validator import DataIntegrityValidator
 
 
 class CacheManager:

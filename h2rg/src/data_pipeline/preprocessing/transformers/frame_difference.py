@@ -3,7 +3,7 @@ from typing import Dict
 from tqdm import tqdm
 from astropy.io import fits
 
-from cleaners.reference_pixel_corrector import ReferencePixelCorrector
+from ..cleaners.reference_pixel_corrector import ReferencePixelCorrector
 
 
 class FrameDifferencer:

@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from tqdm import tqdm
 import logging
 
-from loaders.cache_manager import CacheManager
+from ..loaders.cache_manager import CacheManager
 
 
 class TrainingDataLoader:
