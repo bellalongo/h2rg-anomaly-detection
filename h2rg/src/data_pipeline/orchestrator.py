@@ -2,18 +2,18 @@ import logging
 from typing import List, Dict
 import os
 
-from loaders.cache_manager import CacheManager
-from loaders.data_storage import OptimizedDataStorage
-from loaders.training_data_loader import TrainingDataLoader
+from .loaders.cache_manager import CacheManager
+from .loaders.data_storage import OptimizedDataStorage
+from .loaders.training_data_loader import TrainingDataLoader
 
-from preprocessing.cleaners.reference_pixel_corrector import ReferencePixelCorrector
-from preprocessing.transformers.frame_difference import FrameDifferencer
-from preprocessing.transformers.patch_extractor import PatchExtractor
-from preprocessing.transformers.temporal_analyzer import TemporalAnalyzer
-from preprocessing.dataset_processors import EuclidProcessor
-from preprocessing.dataset_processors import CaseProcessor
+from .preprocessing.cleaners.reference_pixel_corrector import ReferencePixelCorrector
+from .preprocessing.transformers.frame_difference import FrameDifferencer
+from .preprocessing.transformers.patch_extractor import PatchExtractor
+from .preprocessing.transformers.temporal_analyzer import TemporalAnalyzer
+from .preprocessing.dataset_processors import EuclidProcessor
+from .preprocessing.dataset_processors import CaseProcessor
 
-from validation.integrity_validator import DataIntegrityValidator
+from .validation.integrity_validator import DataIntegrityValidator
 
 
 class DataProcessingOrchestrator:
