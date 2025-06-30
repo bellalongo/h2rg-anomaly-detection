@@ -98,6 +98,14 @@ class DataProcessingOrchestrator:
         # Apply CASE-specific config
         if 'case' in config:
             case_config = config['case']
+
+            if 'optimal_x' in case_config:
+                self.reference_corrector.x_opt = case_config['optimal_x']
+                self.logger.info(f"Set CASE optimal x: {case_config['optimal_x']}")
+            
+            if 'optimal_y' in case_config:
+                self.reference_corrector.y_opt = case_config['optimal_y']
+                self.logger.info(f"Set CASE optimal y: {case_config['optimal_y']}")
             
             if 'total_frames' in case_config:
                 self.case_processor.total_frames = case_config['total_frames']

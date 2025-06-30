@@ -4,11 +4,12 @@ preprocessing:
   sigma_threshold: 3.0
 
 euclid:
-  reference_pixel_method: "kubik_optimal"
   optimal_x: 64
   optimal_y: 4
 
 case:
+  optimal_x: 64
+  optimal_y: 4
   dual_detector: true
   extra_columns: 8
   total_frames: 450
