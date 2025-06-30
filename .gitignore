@@ -199,3 +199,5 @@ jpl_env
 h2rg/notebooks/plots/ref_sub_movie.gif
 h2rg/notebooks/plots/no_abs_dif_movie.gif
 h2rg/notebooks/training_set
+
+h2rg/submit_training_job.sh
