@@ -16,10 +16,13 @@ def load_config(config_path: str):
         return yaml.safe_load(f)
 
 def setup_logging(log_level: str = 'INFO', log_file: str = None):
-    """Setup logging configuration"""
+    """Setup logging configuration with automatic directory creation"""
     handlers = [logging.StreamHandler(sys.stdout)]
     
     if log_file:
+        # Create parent directories if they don't exist
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
         handlers.append(logging.FileHandler(log_file))
     
     logging.basicConfig(
@@ -75,7 +78,7 @@ def parse_arguments():
         '--log-file',
         type=str,
         default='results/preprocessing.log',
-        help='Log file path'
+        help='Log file path (relative to project root)'
     )
     
     parser.add_argument(
@@ -94,9 +97,9 @@ def main():
     project_root = Path(__file__).parent.parent.parent.parent
     config_path = project_root / args.config
     
-    # Setup logging
+    # Setup logging with absolute path
     log_file = project_root / args.log_file if args.log_file else None
-    setup_logging(args.log_level, log_file)
+    setup_logging(args.log_level, str(log_file) if log_file else None)
     logger = logging.getLogger(__name__)
     
     logger.info("Starting astronomical data preprocessing pipeline")

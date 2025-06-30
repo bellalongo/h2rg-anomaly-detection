@@ -58,6 +58,62 @@ class DataProcessingOrchestrator:
         # Data directories
         self.data_root_dir = data_root_dir
         self._initialize_data_directories()
+
+    def apply_config(self, config: Dict):
+        """
+            * apply configuration to all components
+        """
+        self.logger.info("Applying configuration to processing components...")
+        
+        # Apply preprocessing config
+        if 'preprocessing' in config:
+            preprocessing_config = config['preprocessing']
+            
+            # Update patch extractor
+            if 'patch_sizes' in preprocessing_config:
+                self.patch_extractor.patch_sizes = preprocessing_config['patch_sizes']
+                self.logger.info(f"Set patch sizes: {preprocessing_config['patch_sizes']}")
+            
+            if 'overlap_ratio' in preprocessing_config:
+                self.patch_extractor.overlap_ratio = preprocessing_config['overlap_ratio']
+                self.logger.info(f"Set overlap ratio: {preprocessing_config['overlap_ratio']}")
+            
+            # Update temporal analyzer
+            if 'sigma_threshold' in preprocessing_config:
+                self.temporal_analyzer.sigma_threshold = preprocessing_config['sigma_threshold']
+                self.logger.info(f"Set sigma threshold: {preprocessing_config['sigma_threshold']}")
+        
+        # Apply EUCLID-specific config
+        if 'euclid' in config:
+            euclid_config = config['euclid']
+            
+            if 'optimal_x' in euclid_config:
+                self.reference_corrector.x_opt = euclid_config['optimal_x']
+                self.logger.info(f"Set EUCLID optimal x: {euclid_config['optimal_x']}")
+            
+            if 'optimal_y' in euclid_config:
+                self.reference_corrector.y_opt = euclid_config['optimal_y']
+                self.logger.info(f"Set EUCLID optimal y: {euclid_config['optimal_y']}")
+        
+        # Apply CASE-specific config
+        if 'case' in config:
+            case_config = config['case']
+            
+            if 'total_frames' in case_config:
+                self.case_processor.total_frames = case_config['total_frames']
+                self.logger.info(f"Set CASE total frames: {case_config['total_frames']}")
+        
+        # Apply storage config (if needed in the future)
+        if 'storage' in config:
+            storage_config = config['storage']
+            self.logger.info(f"Storage config available: {storage_config}")
+        
+        # Apply cache config (already handled by CacheManager initialization)
+        if 'cache' in config:
+            cache_config = config['cache']
+            self.logger.info(f"Cache config: {cache_config}")
+        
+        self.logger.info("Configuration applied successfully")
     
     def _initialize_data_directories(self):
         """
