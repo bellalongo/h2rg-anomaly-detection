@@ -86,6 +86,19 @@ def parse_arguments():
         action='store_true',
         help='Show what would be processed without actually processing'
     )
+
+    parser.add_argument(
+        '--test-run',
+        action='store_true',
+        help='Process only first file from each dataset with 10 frames each (30 total frames)'
+    )
+
+    parser.add_argument(
+        '--test-frames',
+        type=int,
+        default=10,
+        help='Number of frames to process in test run mode (default: 10)'
+    )
     
     return parser.parse_args()
 
@@ -120,6 +133,12 @@ def main():
             output_dir = args.output_dir
         else:
             output_dir = config['cache']['root_dir']
+
+        # Check for test run
+        if args.test_run:
+            base_dir = Path(output_dir)
+            output_dir = str(base_dir.parent / f"{base_dir.name}_test")
+            logger.info(f"TEST RUN MODE: Using test output directory: {output_dir}")
         
         # Convert to absolute path
         if not Path(output_dir).is_absolute():
@@ -136,6 +155,10 @@ def main():
         # Apply configuration
         processor.apply_config(config)
         logger.info(f"Applied configuration: {config}")
+
+        processor.apply_config(config)
+        if args.test_run:
+            processor.enable_test_mode(args.test_frames)
         
         if args.dry_run:
             logger.info("DRY RUN MODE - showing what would be processed")

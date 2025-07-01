@@ -33,7 +33,20 @@ class EuclidProcessor:
         self.cache_manager = cache_manager
         self.validator = validator
 
+        # Test mode details
+        self.test_mode = False
+        self.test_frames = 10
+
         self.logger = logging.getLogger(__name__)
+
+    def set_test_mode(self, test_frames: int = 10):
+        """
+            * enable test mode for limited processing
+        """
+        self.test_mode = test_frames
+        self.test_frames = test_frames
+        self.frame_differencer.set_test_mode(test_frames)
+        self.logger.info(f"EUCLID processor: TEST MODE enabled ({test_frames} frames)")
     
     def process_directory(self, data_root_dir: str, euclid_dirs: List[str]) -> List[str]:
         """
@@ -55,6 +68,11 @@ class EuclidProcessor:
             # Sort the filename by exposure
             sorted_filenames = sorted(filenames, 
                                     key=lambda x: int(re.search(r'E(\d+)', x).group(1)))
+            
+            #  Test mode details
+            if self.test_mode:
+                sorted_filenames = sorted_filenames[:1]
+                self.logger.info(f"TEST MODE: Processing only first file: {sorted_filenames[0]}")
             
             # Iterate through all filenames in order
             for filename in sorted_filenames:
@@ -158,10 +176,23 @@ class CaseProcessor:
         self.cache_manager = cache_manager
         self.validator = validator
         self.logger = logging.getLogger(__name__)
+
+        # Test mode details
+        self.test_mode = False
+        self.test_frames = 10
         
         # Constants
         self.total_frames = 450
         self.img_size = (2048, 2048)
+
+    def set_test_mode(self, test_frames: int = 10):
+        """
+            * enable test mode for limited processing
+        """
+        self.test_mode = True
+        self.test_frames = test_frames
+        self.frame_differencer.set_test_mode(test_frames)
+        self.logger.info(f"CASE processor: TEST MODE enabled ({test_frames} frames)")
     
     def process_directory(self, data_root_dir: str, case_dirs: List[str]) -> List[str]:
         """
@@ -183,6 +214,15 @@ class CaseProcessor:
             sorted_filenames = sorted(filenames, 
                                     key=lambda x: int(re.search(r'N(\d+)', x).group(1)))
             
+            # Test mode: Only take first N files for testing
+            if self.test_mode:
+                frames_needed = self.test_frames + 1  # +1 for reference frame
+                sorted_filenames = sorted_filenames[:frames_needed]
+                self.logger.info(f"TEST MODE: Using only {len(sorted_filenames)} files for {self.test_frames} difference frames")
+
+            # Process in groups (modified for test mode)
+            frames_per_group = len(sorted_filenames) if self.test_mode else self.total_frames
+            
             # Process in groups of 450 files
             for exposure_idx, i in enumerate(range(0, len(sorted_filenames), self.total_frames)):
                 group = sorted_filenames[i:i + self.total_frames]
@@ -194,6 +234,8 @@ class CaseProcessor:
                 
                 # Create a expossure id
                 exposure_id = f'case_{dir_name}_exp{exposure_idx:03d}'
+                if self.test_mode:
+                    exposure_id += f'_test{self.test_frames}frames'
 
                 # Group filepaths for the current exposure
                 group_paths = [f'{path}/{filename}' for filename in group]
@@ -204,6 +246,10 @@ class CaseProcessor:
                 )
                 
                 processed_exposures.extend(detector_exposures)
+
+                # Break if test mode
+                if self.test_mode:
+                    break
         
         return processed_exposures
     
@@ -270,6 +316,9 @@ class CaseProcessor:
             
             d1_frames.append(d1)
             d2_frames.append(d2)
+
+        if self.test_mode:
+            self.logger.info(f"TEST MODE: Loaded {len(d1_frames)} frames per detector")
         
         return np.array(d1_frames), np.array(d2_frames)
     

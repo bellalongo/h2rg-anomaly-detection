@@ -54,10 +54,76 @@ class DataProcessingOrchestrator:
         
         # Data loader
         self.data_loader = TrainingDataLoader(self.cache_manager)
+
+        # Test mode settings
+        self.test_mode = False
+        self.test_frames = 10
         
         # Data directories
         self.data_root_dir = data_root_dir
         self._initialize_data_directories()
+
+    def enable_test_mode(self, test_frames: int = 10):
+        """
+            * enable test mode with limited data processing
+        """
+        self.test_mode = True
+        self.test_frames = test_frames
+        self.logger.info(f"🧪 TEST MODE ENABLED: Processing only {test_frames} frames per file")
+        
+        # Create test subdirectory structure
+        original_root = self.cache_manager.root_dir
+        test_root = original_root / "test"
+        
+        # Update cache manager for test mode
+        self.cache_manager = CacheManager(str(test_root))
+        self.storage = OptimizedDataStorage(self.cache_manager.root_dir)
+        self.data_loader = TrainingDataLoader(self.cache_manager)
+        
+        # Propagate test mode to all processors
+        self.frame_differencer.set_test_mode(test_frames)
+        self.euclid_processor.set_test_mode(test_frames)
+        self.case_processor.set_test_mode(test_frames)
+        
+        # Update cache manager references in processors
+        self.euclid_processor.cache_manager = self.cache_manager
+        self.euclid_processor.storage = self.storage
+        self.case_processor.cache_manager = self.cache_manager
+        self.case_processor.storage = self.storage
+        
+        # Re-initialize data directories with test mode filtering
+        self._initialize_data_directories()
+
+    def _initialize_data_directories(self):
+        """
+            * find and categorize data directories (with test mode filtering)
+        """
+        try:
+            # Get all directories
+            all_dirs = os.listdir(self.data_root_dir)
+            
+            euclid_dirs = [d for d in all_dirs if 'Euclid' in d]
+            
+            case_dirs = []
+            for d in all_dirs:
+                if 'FPM' in d:
+                    nested_dirs = os.listdir(f'{self.data_root_dir}/{d}')
+                    if nested_dirs:
+                        case_dirs.append(f'{d}/{nested_dirs[0]}')
+            
+            # Apply test mode filtering
+            if self.test_mode:
+                self.euclid_dirs = euclid_dirs[:1]  # Only first directory
+                self.case_dirs = case_dirs[:1]      # Only first directory
+                self.logger.info(f"TEST MODE: Limited to {len(self.euclid_dirs)} EUCLID and {len(self.case_dirs)} CASE directories")
+            else:
+                self.euclid_dirs = euclid_dirs
+                self.case_dirs = case_dirs
+        
+        except FileNotFoundError:
+            self.logger.error(f'Data root directory not found: {self.data_root_dir}')
+            self.euclid_dirs = []
+            self.case_dirs = []
 
     def apply_config(self, config: Dict):
         """
@@ -175,3 +241,25 @@ class DataProcessingOrchestrator:
             * save processing registry
         """
         return self.cache_manager.save_registry()
+
+    def get_test_summary(self) -> Dict:
+        """
+            * get summary of what will be processed in test mode
+        """
+        if not self.test_mode:
+            return {"test_mode": False}
+        
+        summary = {
+            "test_mode": True,
+            "test_frames": self.test_frames,
+            "euclid_dirs": self.euclid_dirs,
+            "case_dirs": self.case_dirs,
+            "expected_output": {
+                "euclid_exposures": len(self.euclid_dirs),  # 1 file per dir
+                "case_exposures": len(self.case_dirs) * 2,  # 2 detectors per dir
+                "total_difference_frames": len(self.euclid_dirs) * self.test_frames + len(self.case_dirs) * 2 * self.test_frames,
+                "cache_location": str(self.cache_manager.root_dir)
+            }
+        }
+        
+        return summary
