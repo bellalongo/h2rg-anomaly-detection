@@ -33,10 +33,10 @@ class PatchExtractor:
         
         # Calculate patch grid
         num_patches_height = (height - patch_size) // stride + 1
-        num_patches_heigth = (width - patch_size) // stride + 1
+        num_patches_width = (width - patch_size) // stride + 1
         
         self.logger.info(
-            f'Extracting {num_patches_height}x{num_patches_heigth} patches of {patch_size}x{patch_size}'
+            f'Extracting {num_patches_height}x{num_patches_width} patches of {patch_size}x{patch_size}'
             )
         
         # Iterate through every frame
@@ -64,5 +64,5 @@ class PatchExtractor:
             'patch_size': patch_size,
             'overlap': overlap,
             'stride': stride,
-            'grid_shape': (num_patches_height, num_patches_heigth)
+            'grid_shape': (num_patches_height, num_patches_width)
         }

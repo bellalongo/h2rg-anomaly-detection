@@ -109,7 +109,7 @@ class ReferencePixelCorrector:
 
             # Fixed: Average corrected left/right pixels (syntax error)
             left_avg = np.mean(left_ref_corrected[window_start:window_end, :])
-            right_avg = np.mean(right_ref_corrected[window_start:window_end, :])  # Fixed the dot
+            right_avg = np.mean(right_ref_corrected[window_start:window_end, :])
             lr_correction = (left_avg + right_avg) / 2
 
             corrected_frame[row, 4:2044] -= lr_correction

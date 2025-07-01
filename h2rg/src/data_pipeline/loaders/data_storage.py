@@ -126,7 +126,7 @@ class OptimizedDataStorage:
             * save patches with optimized chunking
         """
         patch_start = time.time()
-        self.logger.info(f"Saving {len(patch_data['patches'])} patches of size {patch_size}x{patch_size}...")
+        self.logger.info(f"Saving {len(patches_data['patches'])} for {exposure_id}...")
 
         # Iterate through all patch data
         for patch_key, patch_data in patches_data.items():

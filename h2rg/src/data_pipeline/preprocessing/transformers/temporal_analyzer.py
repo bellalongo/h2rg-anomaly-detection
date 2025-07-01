@@ -14,6 +14,7 @@ class TemporalAnalyzer:
         """
         # Update to be > AVG
         self.sigma_threshold = sigma_threshold
+        self.use_robust_stats = use_robust_stats
         self.logger = logging.getLogger(__name__)
     
     def analyze_temporal_patterns(self, diff_stack: np.ndarray) -> Dict:
