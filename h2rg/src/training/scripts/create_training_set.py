@@ -137,7 +137,7 @@ def main():
         # Check for test run
         if args.test_run:
             base_dir = Path(output_dir)
-            output_dir = str(base_dir.parent / f"{base_dir.name}_test")
+            output_dir = str(base_dir.parent / "test")
             logger.info(f"TEST RUN MODE: Using test output directory: {output_dir}")
         
         # Convert to absolute path
@@ -158,7 +158,7 @@ def main():
 
         processor.apply_config(config)
         if args.test_run:
-            processor.enable_test_mode(args.test_frames)
+            processor.enable_test_mode(args.test_frames, output_dir)
         
         if args.dry_run:
             logger.info("DRY RUN MODE - showing what would be processed")

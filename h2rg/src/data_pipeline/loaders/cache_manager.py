@@ -13,7 +13,7 @@ class CacheManager:
     """
         * manages the preprocessing cache registry and storage
     """
-    def __init__(self, root_dir: str = 'training_set'):
+    def __init__(self, root_dir: str = 'data/processed'):
         """
 
         """

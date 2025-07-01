@@ -5,7 +5,7 @@ from pathlib import Path
 import tifffile
 import numpy as np
 import logging
-import datetime
+from datetime import datetime
 
 from .transformers.frame_difference import FrameDifferencer
 from .transformers.temporal_analyzer import TemporalAnalyzer

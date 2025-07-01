@@ -20,7 +20,7 @@ class DataProcessingOrchestrator:
     """
         * main orchestrator that coordinates all preprocessing components
     """
-    def __init__(self, root_dir: str = 'training_set', 
+    def __init__(self, root_dir: str = 'data/processed', 
                  data_root_dir: str = '/proj/case/2025-06-05'):
         """
 
@@ -63,20 +63,19 @@ class DataProcessingOrchestrator:
         self.data_root_dir = data_root_dir
         self._initialize_data_directories()
 
-    def enable_test_mode(self, test_frames: int = 10):
+    def enable_test_mode(self, test_frames: int = 10, root_dir = 'data/test'):
         """
             * enable test mode with limited data processing
         """
         self.test_mode = True
         self.test_frames = test_frames
-        self.logger.info(f"🧪 TEST MODE ENABLED: Processing only {test_frames} frames per file")
+        self.logger.info(f"TEST MODE ENABLED: Processing only {test_frames} frames per file")
         
-        # Create test subdirectory structure
-        original_root = self.cache_manager.root_dir
-        test_root = original_root / "test"
+        # # Create test subdirectory structure
+        # test_root = f'{self.cache_manager.root_dir}/test'
         
         # Update cache manager for test mode
-        self.cache_manager = CacheManager(str(test_root))
+        self.cache_manager = CacheManager(root_dir)
         self.storage = OptimizedDataStorage(self.cache_manager.root_dir)
         self.data_loader = TrainingDataLoader(self.cache_manager)
         

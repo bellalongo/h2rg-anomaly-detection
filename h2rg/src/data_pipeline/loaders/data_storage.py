@@ -126,13 +126,14 @@ class OptimizedDataStorage:
             * save patches with optimized chunking
         """
         patch_start = time.time()
-        self.logger.info(f"Saving {len(patches_data['patches'])} for {exposure_id}...")
 
         # Iterate through all patch data
         for patch_key, patch_data in patches_data.items():
             # Grab patch size and filename
             patch_size = patch_data['patch_size']
             patch_file = self.root_dir / 'patches' / f'{exposure_id}_patches_{patch_size}.h5'
+
+            self.logger.info(f"Saving {len(patch_data['patches'])} patches of size {patch_size}x{patch_size}...")
             
             # Open h5py instance
             with h5py.File(patch_file, 'w') as f:
