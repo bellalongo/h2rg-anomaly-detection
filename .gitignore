@@ -196,8 +196,15 @@ cython_debug/
 # Me additions
 jpl_env
 
+h2rg/notebooks/training
 h2rg/notebooks/plots/ref_sub_movie.gif
 h2rg/notebooks/plots/no_abs_dif_movie.gif
+h2rg/notebooks/training_data.ipynb
 h2rg/notebooks/training_set
 
 h2rg/submit_training_job.sh
+
+h2rg/data/processed
+h2rg/data/raw
+h2rg/data/test
+h2rg/data/interim

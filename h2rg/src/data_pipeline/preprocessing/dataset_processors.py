@@ -2,10 +2,16 @@ import os
 import re
 from typing import List, Optional
 from pathlib import Path
-import tifffile
 import numpy as np
 import logging
 from datetime import datetime
+import warnings
+
+# Supress tiffile warnings
+warnings.filterwarnings("ignore")
+logging.getLogger('tifffile').setLevel(logging.ERROR)
+
+import tifffile
 
 from .transformers.frame_difference import FrameDifferencer
 from .transformers.temporal_analyzer import TemporalAnalyzer
@@ -58,6 +64,9 @@ class EuclidProcessor:
         for dir_name in euclid_dirs:
             path = f'{data_root_dir}/{dir_name}'
             filenames = self._get_filenames(path)
+
+            # Just grab the fits files
+            filenames = [f for f in filenames if f.endswith('.fits')]
             
             # Make sure there are actual filenames
             if not filenames:
@@ -65,9 +74,15 @@ class EuclidProcessor:
                     '"filenames" array is empty, please make sure that "EUCLID_DIRS" has been loaded')
                 continue
             
-            # Sort the filename by exposure
-            sorted_filenames = sorted(filenames, 
-                                    key=lambda x: int(re.search(r'E(\d+)', x).group(1)))
+            # Sort the filename by exposure (18283_Euclid_SCA IS DIFFERENT BRUH)
+            try:
+                sorted_filenames = sorted(filenames,
+                                          key=lambda x: int(re.search(r'E(\d+)', x).group(1))
+                )
+            except AttributeError as e:
+                sorted_filenames = sorted(filenames,
+                                          key=lambda x: int(re.search(r'_(\d+)\.fits$', x).group(1))
+                )
             
             #  Test mode details
             if self.test_mode:
@@ -76,19 +91,18 @@ class EuclidProcessor:
             
             # Iterate through all filenames in order
             for filename in sorted_filenames:
-                # Make sure it is a fits file
-                if filename.endswith('.fits'):
-                    exposure_id = f'euclid_{dir_name}_{Path(filename).stem}'
-                    curr_path = f'{path}/{filename}'
-                    
-                    # Check if already cached
-                    if self.cache_manager.is_exposure_cached(exposure_id, [curr_path], self.validator):
-                        self.logger.debug(f'Exposure {exposure_id} already cached')
-                        continue
-                    
-                    # Process exposure
-                    if self._process_single_exposure(exposure_id, curr_path, dir_name, filename):
-                        processed_exposures.append(exposure_id)
+                # Create exposure id and current path
+                exposure_id = f'euclid_{dir_name}_{Path(filename).stem}'
+                curr_path = f'{path}/{filename}'
+                
+                # Check if already cached
+                if self.cache_manager.is_exposure_cached(exposure_id, [curr_path], self.validator):
+                    self.logger.debug(f'Exposure {exposure_id} already cached')
+                    continue
+                
+                # Process exposure
+                if self._process_single_exposure(exposure_id, curr_path, dir_name, filename):
+                    processed_exposures.append(exposure_id)
         
         return processed_exposures
     
@@ -206,6 +220,9 @@ class CaseProcessor:
             path = f'{data_root_dir}/{dir_name}'
 
             filenames = self._get_filenames(path)
+
+            # Just grab tif filenames
+            filenames = [f for f in filenames if f.lower().endswith(('.tif', '.tiff'))]
             
             if not filenames:
                 continue
@@ -227,15 +244,16 @@ class CaseProcessor:
             for exposure_idx, i in enumerate(range(0, len(sorted_filenames), self.total_frames)):
                 group = sorted_filenames[i:i + self.total_frames]
                 
-                # Makse sure that the length is 450 frames
-                if len(group) != self.total_frames:
-                    self.logger.warning(f'Incomplete exposure: {len(group)} files')
-                    continue
+                # # Makse sure that the length is 450 frames
+                # if len(group) != self.total_frames:
+                #     self.logger.warning(f'Incomplete exposure: {len(group)} files')
+                #     continue
                 
                 # Create a expossure id
-                exposure_id = f'case_{dir_name}_exp{exposure_idx:03d}'
-                if self.test_mode:
-                    exposure_id += f'_test{self.test_frames}frames'
+                exp_id_dir = dir_name.replace('/', '__')
+                exposure_id = f'case_{exp_id_dir}_exp{exposure_idx:03d}'
+                # if self.test_mode:
+                #     exposure_id += f'_test{self.test_frames}frames'
 
                 # Group filepaths for the current exposure
                 group_paths = [f'{path}/{filename}' for filename in group]
@@ -300,15 +318,18 @@ class CaseProcessor:
             * load TIF files and split into two detectors
         """
         d1_frames, d2_frames = [], []
+        goal_width = 2048
         
         # Iterate through each filename in the group
         for filename in group:
             tif_data = tifffile.imread(f'{path}/{filename}')
             
-            # Split and crop 
+            # Find split point and how many cols to cut
             split_index = tif_data.shape[1] // 2
-            d1 = tif_data[:, :split_index][:, 8:-8] # Remove 8 from each side
-            d2 = tif_data[:, split_index:][:, 8:-8] # Remove 8 from each side
+            cols_to_cut = (split_index - goal_width) // 2
+
+            d1 = tif_data[:, :split_index][:, cols_to_cut:-cols_to_cut]
+            d2 = tif_data[:, split_index:][:, cols_to_cut:-cols_to_cut]
             
             # Make sure that the shape is still consitent
             if d1.shape != self.img_size or d2.shape != self.img_size:
