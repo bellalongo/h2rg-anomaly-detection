@@ -103,12 +103,7 @@ class DataProcessingOrchestrator:
             
             euclid_dirs = [d for d in all_dirs if 'Euclid' in d]
             
-            case_dirs = []
-            for d in all_dirs:
-                if 'FPM' in d:
-                    nested_dirs = os.listdir(f'{self.data_root_dir}/{d}')
-                    if nested_dirs:
-                        case_dirs.append(f'{d}/{nested_dirs[0]}')
+            case_dirs = [d for d in all_dirs if 'noise' in d]
             
             # Apply test mode filtering
             if self.test_mode:
