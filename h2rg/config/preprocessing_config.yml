@@ -27,6 +27,6 @@ logging:
   file: "results/preprocessing.log"
   
 data:
-  raw_root: "/projects/JWST_planets/ilongo"
+  raw_root: "/projects/JWST_planets/ilongo/raw_data"
   processed_root: "/projects/JWST_planets/ilongo/processed_data"
   interim_root: "/projects/JWST_planets/ilongo/interim_data"
