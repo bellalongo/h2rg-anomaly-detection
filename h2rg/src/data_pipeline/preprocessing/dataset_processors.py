@@ -228,8 +228,13 @@ class CaseProcessor:
                 continue
             
             # Sort the filenames by their index number
-            sorted_filenames = sorted(filenames, 
-                                    key=lambda x: int(re.search(r'N(\d+)', x).group(1)))
+            sorted_filenames = sorted(
+                filenames,
+                key=lambda x: (
+                    int(re.search(r'_E(\d+)_', x).group(1)),  # First: sort by E####
+                    int(re.search(r'_N(\d+)$', x).group(1))   # Then: sort by N####
+                )
+            )
             
             # Test mode: Only take first N files for testing
             if self.test_mode:

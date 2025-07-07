@@ -198,12 +198,7 @@ class DataProcessingOrchestrator:
             
             self.euclid_dirs = [d for d in all_dirs if 'Euclid' in d]
             
-            self.case_dirs = []
-            for d in all_dirs:
-                if 'FPM' in d:
-                    nested_dirs = os.listdir(f'{self.data_root_dir}/{d}')
-                    if nested_dirs:
-                        self.case_dirs.append(f'{d}/{nested_dirs[0]}')
+            self.case_dirs = [d for d in all_dirs if 'noise' in d]
         
         except FileNotFoundError:
             self.logger.error(f'Data root directory not found: {self.data_root_dir}')

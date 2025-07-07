@@ -19,7 +19,7 @@ storage:
   chunk_size: 512
 
 cache:
-  root_dir: "data/processed" 
+  root_dir: "/projects/JWST_planets/ilongo/processed_data" 
   validation_enabled: true
 
 logging:
@@ -27,6 +27,6 @@ logging:
   file: "results/preprocessing.log"
   
 data:
-  raw_root: "/proj/case/2025-06-05"
-  processed_root: "data/processed"
-  interim_root: "data/interim"
+  raw_root: "/projects/JWST_planets/ilongo"
+  processed_root: "/projects/JWST_planets/ilongo/processed_data"
+  interim_root: "/projects/JWST_planets/ilongo/interim_data"
