@@ -171,8 +171,8 @@ class EuclidProcessor:
         processed_exposures = []
         
         for exposure_data in file_list:
-            exposure_id, curr_path, dir_name, filename = exposure_data
-            if self._process_single_exposure(exposure_id, curr_path, dir_name, filename):
+            exposure_idx, exposure_id, curr_path, dir_name, filename = exposure_data
+            if self._process_single_exposure(exposure_idx, exposure_id, curr_path, dir_name, filename):
                 processed_exposures.append(exposure_id)
         
         return processed_exposures
