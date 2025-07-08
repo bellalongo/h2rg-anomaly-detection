@@ -209,6 +209,7 @@ class EuclidProcessor:
             detector_info = {
                 'dataset_type': 'EUCLID',
                 'directory': dir_name,
+                'exposure_index': exposure_id, 
                 'filename': filename,
                 'file_path': file_path,
                 'detector_id': 'single',
