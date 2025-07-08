@@ -23,7 +23,7 @@ class ReferencePixelCorrector:
         if frame.shape != (2048, 2048):
             raise ValueError(f'Invalid frame shape {frame.shape}, must be (2048, 2048)')
         
-        return self._subtract_reference_pixels_numba(frame, self.x_opt, self.y_opt)
+        return ReferencePixelCorrector._subtract_reference_pixels_numba(frame, self.x_opt, self.y_opt)
     
     @staticmethod
     @jit(nopython=True, cache=True)
