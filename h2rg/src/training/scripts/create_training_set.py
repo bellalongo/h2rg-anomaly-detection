@@ -55,7 +55,7 @@ def parse_arguments():
     parser.add_argument(
         '--data-root',
         type=str,
-        default='/proj/case/2025-06-05',
+        default='/projects/JWST_planets/ilongo/raw_data',
         help='Root directory containing raw data'
     )
     
