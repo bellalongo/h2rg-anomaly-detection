@@ -103,15 +103,15 @@ class EuclidProcessor:
                 self.logger.info(f"TEST MODE: Processing only first file: {sorted_filenames[0]}")
 
             # Add to processing queue
-            for filename in sorted_filenames:
+            for exposure_idx, filename in enumerate(sorted_filenames):
                 exposure_id = f'euclid_{dir_name}_{Path(filename).stem}'
                 curr_path = f'{path}/{filename}'
-                all_files.append((exposure_id, curr_path, dir_name, filename))
+                all_files.append((exposure_idx, exposure_id, curr_path, dir_name, filename))
 
         # Filter out already cached files
         uncached_files = []
         for exposure_data in all_files:
-            exposure_id, curr_path, dir_name, filename = exposure_data
+            exposure_idx, exposure_id, curr_path, dir_name, filename = exposure_data
             if not self.cache_manager.is_exposure_cached(exposure_id, [curr_path], self.validator):
                 uncached_files.append(exposure_data)
             else:
@@ -177,8 +177,9 @@ class EuclidProcessor:
         
         return processed_exposures
     
-    def _process_single_exposure(self, exposure_id: str, file_path: str,
-                                 dir_name: str, filename: str) -> bool:
+    def _process_single_exposure(self, exposure_index:int, exposure_id: str,
+                                 file_path: str, dir_name: str,
+                                 filename: str) -> bool:
         """
         Process a single EUCLID exposure
         Enhanced with better error handling and performance monitoring
@@ -209,7 +210,7 @@ class EuclidProcessor:
             detector_info = {
                 'dataset_type': 'EUCLID',
                 'directory': dir_name,
-                'exposure_index': exposure_id, 
+                'exposure_index': exposure_index, 
                 'filename': filename,
                 'file_path': file_path,
                 'detector_id': 'single',
