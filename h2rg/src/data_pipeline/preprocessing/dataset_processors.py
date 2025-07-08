@@ -352,11 +352,11 @@ class CaseProcessor:
         self.total_frames = 450
         self.img_size = (2048, 2048)
 
-def set_production_mode(self, max_parallel_exposures: int = 2):
-    """Enable production mode with parallel exposure processing"""
-    self.production_mode = True
-    self.max_parallel_exposures = max_parallel_exposures
-    self.logger.info(f"CASE processor: PRODUCTION MODE enabled ({max_parallel_exposures} parallel exposures)")
+    def set_production_mode(self, max_parallel_exposures: int = 2):
+        """Enable production mode with parallel exposure processing"""
+        self.production_mode = True
+        self.max_parallel_exposures = max_parallel_exposures
+        self.logger.info(f"CASE processor: PRODUCTION MODE enabled ({max_parallel_exposures} parallel exposures)")
 
     def set_test_mode(self, test_frames: int = 10):
         """

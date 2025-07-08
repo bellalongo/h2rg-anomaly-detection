@@ -24,8 +24,8 @@ class DataProcessingOrchestrator:
     """
         * main orchestrator that coordinates all preprocessing components
     """
-    def __init__(self, root_dir: str = 'data/processed', 
-                 data_root_dir: str = '/proj/case/2025-06-05'):
+    def __init__(self, root_dir: str = '/projects/JWST_planets/ilongo/processed_data', 
+                 data_root_dir: str = '/projects/JWST_planets/ilongo/raw_data'):
         """
 
         """

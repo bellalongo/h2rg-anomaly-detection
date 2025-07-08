@@ -208,3 +208,5 @@ h2rg/data/processed
 h2rg/data/raw
 h2rg/data/test
 h2rg/data/interim
+
+test_run.sh
