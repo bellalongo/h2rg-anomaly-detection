@@ -788,54 +788,54 @@ class CaseProcessor:
         
         return np.array(d1_frames), np.array(d2_frames)
     
-    def _process_detector_exposure(self, detector_exposure_id: str, frame_stack: np.ndarray,
-                                 dir_name: str, exposure_idx: int, detector_idx: int,
-                                 group: List[str], group_paths: List[str]) -> bool:
-        """
-            * process single detector exposure
-        """
-        try:
-            # Compute differences
-            diff_data = self.frame_differencer.compute_tif_differences(frame_stack)
+    # def _process_detector_exposure(self, detector_exposure_id: str, frame_stack: np.ndarray,
+    #                              dir_name: str, exposure_idx: int, detector_idx: int,
+    #                              group: List[str], group_paths: List[str]) -> bool:
+    #     """
+    #         * process single detector exposure
+    #     """
+    #     try:
+    #         # Compute differences
+    #         diff_data = self.frame_differencer.compute_tif_differences(frame_stack)
             
-            # Analyze temporal patterns
-            temporal_data = self.temporal_analyzer.analyze_temporal_patterns(diff_data['differences'])
+    #         # Analyze temporal patterns
+    #         temporal_data = self.temporal_analyzer.analyze_temporal_patterns(diff_data['differences'])
             
-            # Extract patches
-            patches_data = {}
-            for patch_size in self.patch_extractor.patch_sizes:
-                patches_data[f'patches_{patch_size}'] = self.patch_extractor.extract_patches(
-                    diff_data['differences'], patch_size
-                )
+    #         # Extract patches
+    #         patches_data = {}
+    #         for patch_size in self.patch_extractor.patch_sizes:
+    #             patches_data[f'patches_{patch_size}'] = self.patch_extractor.extract_patches(
+    #                 diff_data['differences'], patch_size
+    #             )
             
-            # Prepare detector info
-            detector_info = {
-                'dataset_type': 'CASE',
-                'directory': dir_name,
-                'exposure_index': exposure_idx,
-                'detector_id': f'detector_{detector_idx}',
-                'total_files': len(group),
-                'file_range': f'{group[0]} to {group[-1]}',
-                'exposure_hash': self.validator.get_exposure_hash(group_paths)
-            }
+    #         # Prepare detector info
+    #         detector_info = {
+    #             'dataset_type': 'CASE',
+    #             'directory': dir_name,
+    #             'exposure_index': exposure_idx,
+    #             'detector_id': f'detector_{detector_idx}',
+    #             'total_files': len(group),
+    #             'file_range': f'{group[0]} to {group[-1]}',
+    #             'exposure_hash': self.validator.get_exposure_hash(group_paths)
+    #         }
             
-            # Save everything
-            self.storage.save_processed_exposure(detector_exposure_id, diff_data, temporal_data,
-                                               patches_data, detector_info)
+    #         # Save everything
+    #         self.storage.save_processed_exposure(detector_exposure_id, diff_data, temporal_data,
+    #                                            patches_data, detector_info)
             
-            # Update registry
-            self.cache_manager.registry['processed_exposures'][detector_exposure_id] = {
-                'exposure_hash': detector_info['exposure_hash'],
-                'processed_time': datetime.now().isoformat(timespec='microseconds'),
-                'dataset_type': 'CASE',
-                'detector_info': detector_info
-            }
+    #         # Update registry
+    #         self.cache_manager.registry['processed_exposures'][detector_exposure_id] = {
+    #             'exposure_hash': detector_info['exposure_hash'],
+    #             'processed_time': datetime.now().isoformat(timespec='microseconds'),
+    #             'dataset_type': 'CASE',
+    #             'detector_info': detector_info
+    #         }
             
-            return True
+    #         return True
             
-        except Exception as e:
-            self.logger.error(f'Error processing {detector_exposure_id}: {e}')
-            return False
+    #     except Exception as e:
+    #         self.logger.error(f'Error processing {detector_exposure_id}: {e}')
+    #         return False
     
     def _get_filenames(self, path: str) -> Optional[List[str]]:
         """
