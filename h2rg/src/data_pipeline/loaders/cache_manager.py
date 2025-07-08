@@ -58,7 +58,6 @@ class CacheManager:
         
         # Return blank registry if not
         return {
-            'processed_files': {},
             'processed_exposures': {},
             'last_updated': datetime.now().isoformat(timespec='microseconds')
         }
