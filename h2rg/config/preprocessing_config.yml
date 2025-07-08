@@ -33,6 +33,7 @@
 # h2rg/config/production_config.yml
 # Configuration optimized for 3.2TB production processing
 
+
 preprocessing:
   patch_sizes: [512, 256, 128]  # ALL patch sizes - no shortcuts
   overlap_ratio: 0.25           # Standard overlap - maintains data quality
@@ -54,7 +55,7 @@ storage:
   chunk_size: 1024              # Optimized chunk size for large datasets
 
 cache:
-  root_dir: "processed_data"
+  root_dir: "/projects/JWST_planets/ilongo/processed_data" 
   validation_enabled: true      # Keep validation for data integrity
 
 logging:
@@ -77,5 +78,5 @@ performance:
   
 data:
   raw_root: "/projects/JWST_planets/ilongo/raw_data"
-  processed_root: "processed_data"
-  interim_root: "processed_data/interim"
+  processed_root: "/projects/JWST_planets/ilongo/processed_data"
+  interim_root: "/projects/JWST_planets/ilongo/interim_data"
