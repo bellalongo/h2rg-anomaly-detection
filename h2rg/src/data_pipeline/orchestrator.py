@@ -1,6 +1,10 @@
 import logging
 from typing import List, Dict
 import os
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+import psutil
+import time
+from pathlib import Path
 
 from .loaders.cache_manager import CacheManager
 from .loaders.data_storage import OptimizedDataStorage
@@ -62,6 +66,27 @@ class DataProcessingOrchestrator:
         # Data directories
         self.data_root_dir = data_root_dir
         self._initialize_data_directories()
+
+    def enable_production_mode(self, max_parallel_exposures: int = None):
+        """
+        Enable production mode with parallel processing
+        """
+        if max_parallel_exposures is None:
+            # Auto-detect optimal number based on system resources
+            cpu_count = psutil.cpu_count()
+            memory_gb = psutil.virtual_memory().total / (1024**3)
+            
+            # Conservative estimate: each exposure needs ~4GB RAM during processing
+            memory_limited = int(memory_gb / 4)
+            cpu_limited = min(cpu_count, 8)  # Don't go too high to avoid I/O bottlenecks
+            
+            max_parallel_exposures = min(memory_limited, cpu_limited, 6)
+        
+        self.max_parallel_exposures = max_parallel_exposures
+        self.production_mode = True
+        
+        self.logger.info(f"PRODUCTION MODE: {max_parallel_exposures} parallel exposures")
+        self.logger.info(f"System: {psutil.cpu_count()} CPUs, {psutil.virtual_memory().total/(1024**3):.1f}GB RAM")
 
     def enable_test_mode(self, test_frames: int = 10, root_dir = 'data/test'):
         """
@@ -199,19 +224,170 @@ class DataProcessingOrchestrator:
             self.logger.error(f'Data root directory not found: {self.data_root_dir}')
             self.euclid_dirs = []
             self.case_dirs = []
+
+    def _process_euclid_parallel(self) -> List[str]:
+        """Process ALL EUCLID data with parallel execution"""
+        self.logger.info("Processing EUCLID dataset in PARALLEL mode")
+        
+        # Collect all EUCLID exposures
+        exposure_list = []
+        for dir_name in self.euclid_dirs:
+            dir_path = Path(self.data_root_dir) / dir_name
+            fits_files = sorted(dir_path.glob("*.fits"))
+            
+            for fits_file in fits_files:
+                exposure_id = f'euclid_{dir_name}_{fits_file.stem}'
+                
+                # Check if already cached
+                if not self.cache_manager.is_exposure_cached(exposure_id, [str(fits_file)], self.validator):
+                    exposure_list.append((exposure_id, str(fits_file), dir_name, fits_file.name))
+        
+        self.logger.info(f"Processing {len(exposure_list)} uncached EUCLID exposures")
+        
+        if not exposure_list:
+            self.logger.info("All EUCLID exposures already cached")
+            return []
+        
+        # Process in parallel batches
+        return self._process_exposures_in_batches(exposure_list, 'EUCLID')
+    
+    def _process_case_parallel(self) -> List[str]:
+        """Process ALL CASE data with parallel execution"""
+        self.logger.info("Processing CASE dataset in PARALLEL mode")
+        
+        # Collect all CASE exposures
+        exposure_list = []
+        for dir_name in self.case_dirs:
+            dir_path = Path(self.data_root_dir) / dir_name
+            tif_files = sorted(dir_path.glob("*.tif"))
+            
+            # Group into exposures of 450 files
+            total_frames = 450
+            for exposure_idx, i in enumerate(range(0, len(tif_files), total_frames)):
+                group = tif_files[i:i + total_frames]
+                
+                if len(group) == total_frames:  # Only process complete exposures
+                    exposure_id = f'case_{dir_name.replace("/", "__")}_exp{exposure_idx:03d}'
+                    file_paths = [str(f) for f in group]
+                    
+                    # Check if both detectors are cached
+                    det1_cached = self.cache_manager.is_exposure_cached(
+                        f'{exposure_id}_det1', file_paths, self.validator
+                    )
+                    det2_cached = self.cache_manager.is_exposure_cached(
+                        f'{exposure_id}_det2', file_paths, self.validator
+                    )
+                    
+                    if not (det1_cached and det2_cached):
+                        exposure_list.append((exposure_id, file_paths, dir_name, exposure_idx))
+        
+        self.logger.info(f"Processing {len(exposure_list)} uncached CASE exposures")
+        
+        if not exposure_list:
+            self.logger.info("All CASE exposures already cached")
+            return []
+        
+        # Process in parallel batches
+        return self._process_exposures_in_batches(exposure_list, 'CASE')
     
     def preprocess(self, dataset_name: str) -> List[str]:
         """
-            * main preprocessing dispatcher
+        Main preprocessing dispatcher - enhanced to use parallel processing when available
         """
         dataset_name = dataset_name.upper()
         
-        if dataset_name == 'EUCLID':
-            return self.euclid_processor.process_directory(self.data_root_dir, self.euclid_dirs)
-        elif dataset_name == 'CASE':
-            return self.case_processor.process_directory(self.data_root_dir, self.case_dirs)
+        # Use parallel processing if production mode is enabled
+        if hasattr(self, 'production_mode') and self.production_mode:
+            return self.preprocess_parallel(dataset_name)
         else:
-            raise ValueError(f'Invalid dataset name: {dataset_name}. Must be EUCLID or CASE')
+            # Standard processing
+            if dataset_name == 'EUCLID':
+                return self.euclid_processor.process_directory(self.data_root_dir, self.euclid_dirs)
+            elif dataset_name == 'CASE':
+                return self.case_processor.process_directory(self.data_root_dir, self.case_dirs)
+            else:
+                raise ValueError(f'Invalid dataset name: {dataset_name}. Must be EUCLID or CASE')
+
+    def preprocess_parallel(self, dataset_name: str) -> List[str]:
+        """
+        Parallel preprocessing for production workloads
+        Processes ALL data with maximum speed but NO shortcuts
+        """
+        if not hasattr(self, 'production_mode'):
+            self.logger.warning("Production mode not enabled. Using standard processing.")
+            return self.preprocess(dataset_name)
+        
+        dataset_name = dataset_name.upper()
+        start_time = time.time()
+        
+        self.logger.info(f"Starting PARALLEL processing for {dataset_name}")
+        self._log_system_resources()
+        
+        if dataset_name == 'EUCLID':
+            processed_exposures = self._process_euclid_parallel()
+        elif dataset_name == 'CASE':
+            processed_exposures = self._process_case_parallel()
+        elif dataset_name == 'ALL':
+            euclid_exposures = self._process_euclid_parallel()
+            case_exposures = self._process_case_parallel()
+            processed_exposures = euclid_exposures + case_exposures
+        else:
+            raise ValueError(f'Invalid dataset name: {dataset_name}')
+        
+        total_time = time.time() - start_time
+        self._log_completion_stats(processed_exposures, total_time, dataset_name)
+        
+        return processed_exposures
+    
+    def _log_system_resources(self):
+        """Log current system resource usage"""
+        memory = psutil.virtual_memory()
+        cpu_percent = psutil.cpu_percent(interval=1)
+        
+        self.logger.info(f"System Resources:")
+        self.logger.info(f"  CPU Usage: {cpu_percent:.1f}%")
+        self.logger.info(f"  Memory: {memory.used/1e9:.1f}GB/{memory.total/1e9:.1f}GB ({memory.percent:.1f}%)")
+        self.logger.info(f"  Available Memory: {memory.available/1e9:.1f}GB")
+
+    def _log_completion_stats(self, processed_exposures: List[str], total_time: float, dataset_name: str):
+        """Log completion statistics"""
+        self.logger.info("="*60)
+        self.logger.info(f"PARALLEL PROCESSING COMPLETE - {dataset_name}")
+        self.logger.info(f"Total exposures processed: {len(processed_exposures)}")
+        self.logger.info(f"Total processing time: {total_time:.2f}s ({total_time/60:.1f} minutes)")
+        
+        if len(processed_exposures) > 0:
+            avg_time_per_exposure = total_time / len(processed_exposures)
+            self.logger.info(f"Average time per exposure: {avg_time_per_exposure:.2f}s")
+            
+            # Estimate total dataset processing time
+            if dataset_name == 'EUCLID':
+                total_dirs = len(self.euclid_dirs)
+                estimated_exposures = total_dirs * 10  # Rough estimate
+            elif dataset_name == 'CASE':
+                total_dirs = len(self.case_dirs)
+                estimated_exposures = total_dirs * 2  # 2 detectors per directory
+            else:
+                estimated_exposures = len(processed_exposures)
+            
+            estimated_full_time = avg_time_per_exposure * estimated_exposures
+            self.logger.info(f"Estimated full dataset time: {estimated_full_time/3600:.1f} hours")
+        
+        self.logger.info("="*60)
+    
+    
+    # def preprocess(self, dataset_name: str) -> List[str]:
+    #     """
+    #         * main preprocessing dispatcher
+    #     """
+    #     dataset_name = dataset_name.upper()
+        
+    #     if dataset_name == 'EUCLID':
+    #         return self.euclid_processor.process_directory(self.data_root_dir, self.euclid_dirs)
+    #     elif dataset_name == 'CASE':
+    #         return self.case_processor.process_directory(self.data_root_dir, self.case_dirs)
+    #     else:
+    #         raise ValueError(f'Invalid dataset name: {dataset_name}. Must be EUCLID or CASE')
     
     def load_training_dataset(self, **kwargs) -> Dict:
         """

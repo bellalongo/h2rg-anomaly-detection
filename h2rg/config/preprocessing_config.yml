@@ -1,32 +1,81 @@
+# preprocessing:
+#   patch_sizes: [512, 256, 128]
+#   overlap_ratio: 0.25
+#   sigma_threshold: 3.0
+
+# euclid:
+#   optimal_x: 64
+#   optimal_y: 4
+
+# case:
+#   optimal_x: 64
+#   optimal_y: 4
+#   dual_detector: true
+#   extra_columns: 8
+#   total_frames: 450
+
+# storage:
+#   compression: "lzf"
+#   chunk_size: 512
+
+# cache:
+#   root_dir: "/projects/JWST_planets/ilongo/processed_data" 
+#   validation_enabled: true
+
+# logging:
+#   level: "INFO"
+#   file: "results/preprocessing.log"
+  
+# data:
+#   raw_root: "/projects/JWST_planets/ilongo/raw_data"
+#   processed_root: "/projects/JWST_planets/ilongo/processed_data"
+#   interim_root: "/projects/JWST_planets/ilongo/interim_data"
+# h2rg/config/production_config.yml
+# Configuration optimized for 3.2TB production processing
+
 preprocessing:
-  patch_sizes: [512, 256, 128]
-  overlap_ratio: 0.25
-  sigma_threshold: 3.0
+  patch_sizes: [512, 256, 128]  # ALL patch sizes - no shortcuts
+  overlap_ratio: 0.25           # Standard overlap - maintains data quality
+  sigma_threshold: 3.0          # Standard threshold - finds all anomalies
 
 euclid:
-  optimal_x: 64
-  optimal_y: 4
+  optimal_x: 64                 # Full optimal window from paper
+  optimal_y: 4                  # Full optimal window from paper
 
 case:
-  optimal_x: 64
-  optimal_y: 4
+  optimal_x: 64                 # Full optimal window
+  optimal_y: 4                  # Full optimal window
   dual_detector: true
   extra_columns: 8
   total_frames: 450
 
 storage:
-  compression: "lzf"
-  chunk_size: 512
+  compression: "lzf"            # Fast compression for production
+  chunk_size: 1024              # Optimized chunk size for large datasets
 
 cache:
-  root_dir: "/projects/JWST_planets/ilongo/processed_data" 
-  validation_enabled: true
+  root_dir: "processed_data"
+  validation_enabled: true      # Keep validation for data integrity
 
 logging:
-  level: "INFO"
-  file: "results/preprocessing.log"
+  level: "INFO"                 # Detailed logging for production monitoring
+  file: "logs/production_run.log"
+
+# Production-specific settings
+parallel_processing:
+  max_exposures: 6              # Process 6 exposures simultaneously
+  max_patch_threads: 4          # 4 threads for patch extraction
+  batch_size: 8                 # Process in batches of 8
+  memory_threshold: 0.85        # Use up to 85% of available memory
+
+# Performance optimizations
+performance:
+  use_numba: true               # Enable Numba JIT compilation
+  numba_parallel: true          # Enable Numba parallel processing
+  precompile_numba: true        # Pre-compile Numba functions
+  use_threading: true           # Enable threading for I/O operations
   
 data:
   raw_root: "/projects/JWST_planets/ilongo/raw_data"
-  processed_root: "/projects/JWST_planets/ilongo/processed_data"
-  interim_root: "/projects/JWST_planets/ilongo/interim_data"
+  processed_root: "processed_data"
+  interim_root: "processed_data/interim"
