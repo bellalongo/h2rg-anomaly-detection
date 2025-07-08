@@ -396,7 +396,7 @@ class CaseProcessor:
                 filenames,
                 key=lambda x: (
                     int(re.search(r'_E(\d+)_', x).group(1)),  # First: sort by E####
-                    int(re.search(r'_N(\d+)$', x).group(1))   # Then: sort by N####
+                    int(re.search(r'_N(\d+)\.tif$', x).group(1))   # Then: sort by N####
                 )
             )
             
