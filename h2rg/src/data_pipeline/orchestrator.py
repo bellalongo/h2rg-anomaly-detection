@@ -159,9 +159,9 @@ class DataProcessingOrchestrator:
                 self.patch_extractor.patch_sizes = preprocessing_config['patch_sizes']
                 self.logger.info(f"Set patch sizes: {preprocessing_config['patch_sizes']}")
             
-            if 'overlap_ratio' in preprocessing_config:
-                self.patch_extractor.overlap_ratio = preprocessing_config['overlap_ratio']
-                self.logger.info(f"Set overlap ratio: {preprocessing_config['overlap_ratio']}")
+            # if 'overlap_ratio' in preprocessing_config:
+            #     self.patch_extractor.overlap_ratio = preprocessing_config['overlap_ratio']
+            #     self.logger.info(f"Set overlap ratio: {preprocessing_config['overlap_ratio']}")
             
             # Update temporal analyzer
             if 'sigma_threshold' in preprocessing_config:

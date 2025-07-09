@@ -154,7 +154,7 @@ class OptimizedDataStorage:
                     f.create_dataset(key, data=patch_data[key])
                 
                 # Store attributes
-                for attr in ['patch_size', 'overlap', 'stride', 'grid_shape']:
+                for attr in ['patch_size', 'stride', 'grid_shape']:
                     f.attrs[attr] = patch_data[attr]
 
             self.logger.info(f"Patches {patch_size}x{patch_size} saved")
