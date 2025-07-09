@@ -11,12 +11,12 @@ class PatchExtractor:
     """
         * extracts overlapping patches from difference images for ViT-VAE training
     """
-    def __init__(self, patch_sizes: List[int] = [512, 256, 128], overlap_ratio: float = 0.25):
+    def __init__(self, patch_sizes: List[int] = [512, 256, 128]):
         """
 
         """
         self.patch_sizes = patch_sizes
-        self.overlap_ratio = overlap_ratio
+        # self.overlap_ratio = overlap_ratio
         self.logger = logging.getLogger(__name__)
 
     def extract_patches(self, diff_stack: np.ndarray, patch_size: int) -> Dict:
@@ -27,8 +27,8 @@ class PatchExtractor:
         
         # Initialize detector data
         num_frames, height, width = diff_stack.shape
-        overlap = int(patch_size * self.overlap_ratio)
-        stride = patch_size - overlap
+        # overlap = int(patch_size * self.overlap_ratio)
+        stride = patch_size
         
         # Calculate patch grid
         num_patches_height = (height - patch_size) // stride + 1
@@ -90,7 +90,7 @@ class PatchExtractor:
             'frame_indices': frame_indices,
             'anomaly_scores': anomaly_scores,
             'patch_size': patch_size,
-            'overlap': int(patch_size * self.overlap_ratio),
+            # 'overlap': int(patch_size * self.overlap_ratio),
             'stride': stride,
             'grid_shape': (num_patches_height, num_patches_width)
         }
@@ -166,7 +166,7 @@ class PatchExtractor:
             'frame_indices': frame_indices,
             'anomaly_scores': anomaly_scores,
             'patch_size': patch_size,
-            'overlap': int(patch_size * self.overlap_ratio),
+            # 'overlap': int(patch_size * self.overlap_ratio),
             'stride': stride,
             'grid_shape': (num_patches_height, num_patches_width)
         }

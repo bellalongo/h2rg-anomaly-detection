@@ -208,6 +208,7 @@ class EuclidProcessor:
             
             # Prepare detector info
             detector_info = {
+                'exposure_id': exposure_id,
                 'dataset_type': 'EUCLID',
                 'directory': dir_name,
                 'exposure_index': exposure_index, 
@@ -617,6 +618,7 @@ class CaseProcessor:
             
             # Prepare detector info
             detector_info = {
+                'exposure_id': detector_exposure_id,
                 'dataset_type': 'CASE',
                 'directory': dir_name,
                 'exposure_index': exposure_idx,
