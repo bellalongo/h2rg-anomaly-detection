@@ -11,12 +11,16 @@ sys.path.insert(0, str(project_root / 'src'))
 from data_pipeline.orchestrator import DataProcessingOrchestrator
 
 def load_config(config_path: str):
-    """Load configuration from YAML file"""
+    """
+
+    """
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
 def setup_logging(log_level: str = 'INFO', log_file: str = None):
-    """Setup logging configuration with automatic directory creation"""
+    """
+
+    """
     handlers = [logging.StreamHandler(sys.stdout)]
     
     if log_file:
@@ -32,7 +36,9 @@ def setup_logging(log_level: str = 'INFO', log_file: str = None):
     )
 
 def parse_arguments():
-    """Parse command line arguments"""
+    """
+
+    """
     parser = argparse.ArgumentParser(
         description='Create training dataset for astronomical anomaly detection'
     )
@@ -103,7 +109,9 @@ def parse_arguments():
     return parser.parse_args()
 
 def main():
-    """Main processing pipeline"""
+    """
+        
+    """
     args = parse_arguments()
     
     # Determine paths relative to project root

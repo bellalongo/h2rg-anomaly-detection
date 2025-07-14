@@ -14,12 +14,16 @@ from data_pipeline.orchestrator import DataOrchestrator
 import yaml
 
 def load_config(config_path: str):
-    """Load configuration from YAML file"""
+    """
+
+    """
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
 def setup_logging(log_file: str, log_level: str = "INFO"):
-    """Setup logging configuration"""
+    """
+
+    """
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -31,8 +35,9 @@ def setup_logging(log_file: str, log_level: str = "INFO"):
     return logging.getLogger(__name__)
 
 def get_exposure_list(data_root: str, dataset_type: str = "ALL"):
-    """Get list of all exposures to process"""
-    
+    """
+
+    """
     exposure_list = []
     data_root_path = Path(data_root)
     
@@ -55,7 +60,9 @@ def get_exposure_list(data_root: str, dataset_type: str = "ALL"):
     return exposure_list
 
 def distribute_exposures(exposure_list, array_task_id, total_array_tasks):
-    """Distribute exposures across array tasks"""
+    """
+
+    """
     total_exposures = len(exposure_list)
     exposures_per_task = math.ceil(total_exposures / total_array_tasks)
     
@@ -67,7 +74,9 @@ def distribute_exposures(exposure_list, array_task_id, total_array_tasks):
     return task_exposures, start_idx, end_idx
 
 def process_exposure_subset(orchestrator, exposure_subset, logger):
-    """Process a subset of exposures"""
+    """
+
+    """
     processed_count = 0
     failed_count = 0
     

@@ -2,6 +2,7 @@ import numpy as np
 from typing import Dict
 from tqdm import tqdm
 import logging
+from skimage.measure import label, regionprops
 
 
 class TemporalAnalyzer:
@@ -42,6 +43,12 @@ class TemporalAnalyzer:
         
         # Feature 5: Track significance level of each pixel
         max_significance = np.zeros((height, width), dtype=np.float32)
+
+        # Feature 6: Track the size of the anomally
+        anomaly_sizes_per_frame = [] 
+        anomaly_groups_per_frame = []
+        unique_anomaly_tracker = {}
+
         
         self.logger.info(f"Processing {num_frames} frames with {self.sigma_threshold}σ threshold...")
         
@@ -52,6 +59,37 @@ class TemporalAnalyzer:
             
             # Find anomalies above adaptive threshold
             anomaly_mask = diff_frame > self.calculated_threshold
+
+            # Group adjacent anomalies w/ connected components
+            labeled_anomalies, num_anomalies = label(anomaly_mask, return_num=True)
+            frame_anomaly_groups = []
+
+            # Analyze each connected component
+            if num_anomalies > 0:
+                regions = regionprops(labeled_anomalies)
+
+                # Iterate through each region
+                for region in regions:
+                    anomaly_group = {
+                        'area': region.area,                            # Size of the grouped anomaly
+                        'centroid': region.centroid,                    # Center position
+                        'bbox': region.bbox,                            # Bounding box
+                        'frame': frame_idx,                             # Frame index
+                        'eccentricity': region.eccentricity,            # Shape measure
+                        'major_axis_length': region.major_axis_length,
+                        'minor_axis_length': region.minor_axis_length,
+                        'mean_intensity': np.mean(diff_frame[labeled_anomalies == region.label])
+                    }
+                    frame_anomaly_groups.append(anomaly_group)
+
+                    # Track individual anomaly evolution across frames
+                    anomaly_id = self._assign_anomaly_id(region.centroid, frame_idx, unique_anomaly_tracker)
+                    if anomaly_id not in unique_anomaly_tracker:
+                        unique_anomaly_tracker[anomaly_id] = []
+                    
+                    unique_anomaly_tracker[anomaly_id].append(anomaly_group)
+                
+            anomaly_groups_per_frame.append(frame_anomaly_groups)
             
             # Calculate significance level for this frame
             if self.use_robust_stats:
@@ -74,11 +112,18 @@ class TemporalAnalyzer:
             
             # Track frame-level statistics
             if np.any(anomaly_mask):
+                total_anomaly_area = np.sum(anomaly_mask)
+                mean_grouped_anomaly_size = np.mean([g['area'] for g in frame_anomaly_groups]) if frame_anomaly_groups else 0
+                max_grouped_anomaly_size = np.max([g['area'] for g in frame_anomaly_groups]) if frame_anomaly_groups else 0
+
                 mean_anomaly_intensity = np.mean(diff_frame[anomaly_mask])
                 mean_anomaly_significance = np.mean(significance_frame[anomaly_mask])
                 max_frame_intensity = np.max(diff_frame)
                 max_frame_significance = np.max(significance_frame)
             else:
+                total_anomaly_area = 0
+                mean_grouped_anomaly_size = 0
+                max_grouped_anomaly_size = 0
                 mean_anomaly_intensity = 0
                 mean_anomaly_significance = 0
                 max_frame_intensity = np.max(diff_frame)
@@ -86,7 +131,11 @@ class TemporalAnalyzer:
             
             temporal_evolution.append({
                 'frame': frame_idx,
-                'n_anomalies': np.sum(anomaly_mask),
+                'n_anomalies': np.sum(anomaly_mask),                    # Total anomalous pixels
+                'n_grouped_anomalies': num_anomalies,                   # NEW: Number of grouped anomalies
+                'total_anomaly_area': total_anomaly_area,               # NEW: Total area covered
+                'mean_grouped_anomaly_size': mean_grouped_anomaly_size, # NEW: Average size of groups
+                'max_grouped_anomaly_size': max_grouped_anomaly_size,   # NEW: Largest group size
                 'mean_intensity': mean_anomaly_intensity,
                 'max_intensity': max_frame_intensity,
                 'mean_significance': mean_anomaly_significance,
@@ -98,6 +147,9 @@ class TemporalAnalyzer:
         total_anomaly_pixels = np.sum(first_appearance >= 0)
         total_pixels = height * width
 
+        total_unique_anomalies = len(unique_anomaly_tracker)
+        grouped_anomaly_stats = self._calculate_grouped_anomaly_statistics(unique_anomaly_tracker)
+
         return {
             'first_appearance': first_appearance,
             'persistence_count': persistence_count,
@@ -106,11 +158,75 @@ class TemporalAnalyzer:
             'temporal_evolution': temporal_evolution,
             'threshold_used': self.calculated_threshold,  
             'sigma_threshold': self.sigma_threshold,      
-            'background_stats': self.background_stats,    
+            'background_stats': self.background_stats,
+            
+            'anomaly_groups_per_frame': anomaly_groups_per_frame,
+            'unique_anomaly_tracker': unique_anomaly_tracker,
+            'grouped_anomaly_stats': grouped_anomaly_stats,
+            
             'summary_stats': {
                 'total_anomaly_pixels': total_anomaly_pixels,
                 'anomaly_fraction': total_anomaly_pixels / total_pixels,
-                'max_significance_sigma': np.max(max_significance)
+                'max_significance_sigma': np.max(max_significance),
+                'total_unique_grouped_anomalies': total_unique_anomalies,  # NEW
+                'grouped_size_distribution': grouped_anomaly_stats         # NEW
+            }
+        }
+    
+    def _assign_anomaly_id(self, centroid, frame_idx, anomaly_tracker, max_distance=50.0):
+        """
+            * assign consistent ID to anomalies based on proximity to previous frames
+        """
+        if frame_idx == 0 or not anomaly_tracker:
+            return len(anomaly_tracker)
+        
+        # Find closest existing anomaly
+        min_distance = float('inf')
+        closest_id = -1
+        
+        for anomaly_id, history in anomaly_tracker.items():
+            if history:  # If anomaly has previous detections
+                last_centroid = history[-1]['centroid']
+                distance = np.sqrt((centroid[0] - last_centroid[0])**2 + 
+                                 (centroid[1] - last_centroid[1])**2)
+                
+                if distance < min_distance and distance < max_distance:
+                    min_distance = distance
+                    closest_id = anomaly_id
+        
+        # If no close anomaly found, create new ID
+        if closest_id == -1:
+            return len(anomaly_tracker)
+        
+        return closest_id
+    
+    def _calculate_grouped_anomaly_statistics(self, anomaly_tracker):
+        """
+            * calculate statistics for grouped anomalies across all frames
+        """
+        all_areas = []
+        all_persistence = []
+        
+        for anomaly_id, history in anomaly_tracker.items():
+            if history:
+                areas = [detection['area'] for detection in history]
+                all_areas.extend(areas)
+                all_persistence.append(len(history))
+        
+        if not all_areas:
+            return {}
+        
+        return {
+            'mean_area': np.mean(all_areas),
+            'median_area': np.median(all_areas),
+            'std_area': np.std(all_areas),
+            'mean_persistence': np.mean(all_persistence),
+            'max_persistence': np.max(all_persistence),
+            'area_percentiles': {
+                '25th': np.percentile(all_areas, 25),
+                '75th': np.percentile(all_areas, 75),
+                '90th': np.percentile(all_areas, 90),
+                '95th': np.percentile(all_areas, 95)
             }
         }
     
