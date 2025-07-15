@@ -152,7 +152,7 @@ def main():
             return 0
         
         # Create orchestrator
-        orchestrator = DataOrchestrator(
+        orchestrator = DataProcessingOrchestrator(
             data_root_dir=args.data_root,
             root_dir=args.output_dir
         )
