@@ -30,16 +30,27 @@ def setup_logging(log_file: str, log_level: str = "INFO"):
     )
     return logging.getLogger(__name__)
 
-def get_files_in_folder(data_root: str, folder_name: str):
-    """Get all FITS files in a specific folder"""
+def get_files_in_folder(data_root: str, folder_name: str, dataset_type: str):
+    """Get all files in a specific folder based on dataset type"""
     folder_path = Path(data_root) / folder_name
     if not folder_path.exists():
         raise FileNotFoundError(f"Folder not found: {folder_path}")
     
-    fits_files = list(folder_path.glob("*.fits"))
-    fits_files.sort()  # Ensure consistent ordering
+    # Choose file extension based on dataset type
+    if dataset_type == "EUCLID":
+        # EUCLID datasets use FITS files
+        files = list(folder_path.glob("*.fits"))
+    elif dataset_type == "CASE":
+        # CASE datasets use TIF/TIFF files
+        tif_files = list(folder_path.glob("*.tif"))
+        tiff_files = list(folder_path.glob("*.tiff"))
+        files = tif_files + tiff_files
+    else:
+        raise ValueError(f"Unknown dataset type: {dataset_type}")
     
-    return [(str(f), f.stem) for f in fits_files]
+    files.sort()  # Ensure consistent ordering
+    
+    return [(str(f), f.stem) for f in files]
 
 def distribute_files_for_job(file_list, job_within_folder, total_jobs_per_folder):
     """Distribute files among jobs within a folder"""
@@ -136,7 +147,7 @@ def main():
         
         # Get all files in the folder
         logger.info(f"Getting files from folder: {args.folder_name}")
-        all_files = get_files_in_folder(args.data_root, args.folder_name)
+        all_files = get_files_in_folder(args.data_root, args.folder_name, args.dataset_type)
         logger.info(f"Found {len(all_files)} FITS files in folder")
         
         # Distribute files for this specific job
