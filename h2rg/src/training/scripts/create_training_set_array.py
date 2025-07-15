@@ -7,11 +7,11 @@ import time
 import math
 import yaml
 
-# Add src to path
+# Add src directory to path for imports
 project_root = Path(__file__).parent.parent.parent.parent  # Go up to project root
 sys.path.insert(0, str(project_root / 'src'))
 
-from data_pipeline.orchestrator import DataOrchestrator
+from data_pipeline.orchestrator import DataProcessingOrchestrator
 
 def load_config(config_path: str):
     """Load configuration from YAML file"""
