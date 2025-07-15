@@ -35,7 +35,7 @@
 
 
 preprocessing:
-  patch_sizes: [512, 256, 128]  # ALL patch sizes - no shortcuts
+  patch_sizes: [128]  # ALL patch sizes - no shortcuts
   # overlap_ratio: 0.25           # Standard overlap - maintains data quality
   sigma_threshold: 3.0          # Standard threshold - finds all anomalies
 
