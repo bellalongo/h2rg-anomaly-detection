@@ -11,7 +11,7 @@ class TemporalAnalyzer:
         * analyzes temporal patterns in difference images for anomaly detection
     """
     def __init__(self, sigma_threshold: float = 3.0, use_robust_stats: bool = True,
-                 dilation_size = 1.0):
+                 dilation_size = 1):
         """
             * threshold: how many std above mean to define events
         """
@@ -156,8 +156,7 @@ class TemporalAnalyzer:
     def _efficient_morphological_grouping(self, diff_frame: np.ndarray, anomaly_mask: np.ndarray, 
                                         frame_idx: int, unique_anomaly_tracker: Dict) -> List[Dict]:
         """
-        NEW: Efficient morphological grouping using scipy operations
-        Much faster than skimage.regionprops while maintaining accuracy
+            * efficient morphological grouping using scipy operations
         """
         if not np.any(anomaly_mask):
             return []
@@ -227,8 +226,7 @@ class TemporalAnalyzer:
     
     def _assign_anomaly_id(self, centroid, frame_idx, anomaly_tracker, max_distance=50.0):
         """
-        Assign consistent ID to anomalies based on proximity across frames
-        Optimized for speed with limited lookback
+            * assign consistent ID to anomalies based on proximity across frames
         """
         if frame_idx == 0 or not anomaly_tracker:
             return len(anomaly_tracker)
@@ -254,7 +252,7 @@ class TemporalAnalyzer:
     
     def _calculate_grouped_statistics(self, anomaly_tracker: Dict) -> Dict:
         """
-        Calculate statistics for grouped anomalies across all frames
+        *   calculate statistics for grouped anomalies across all frames
         """
         if not anomaly_tracker:
             return {}
