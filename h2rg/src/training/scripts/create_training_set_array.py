@@ -40,15 +40,23 @@ def get_files_in_folder(data_root: str, folder_name: str, dataset_type: str):
     if dataset_type == "EUCLID":
         # EUCLID datasets use FITS files
         files = list(folder_path.glob("*.fits"))
+        files.sort()  # Ensure consistent ordering
+        
     elif dataset_type == "CASE":
         # CASE datasets use TIF/TIFF files
         tif_files = list(folder_path.glob("*.tif"))
         tiff_files = list(folder_path.glob("*.tiff"))
         files = tif_files + tiff_files
+        
+        # CRITICAL: Sort CASE files properly by E#### and N#### indices
+        if files:
+            import re
+            files = sorted(files, key=lambda x: (
+                int(re.search(r'_E(\d+)_', x.name).group(1)) if re.search(r'_E(\d+)_', x.name) else 0,
+                int(re.search(r'_N(\d+)\.tif', x.name).group(1)) if re.search(r'_N(\d+)\.tif', x.name) else 0
+            ))
     else:
         raise ValueError(f"Unknown dataset type: {dataset_type}")
-    
-    files.sort()  # Ensure consistent ordering
     
     return [(str(f), f.stem) for f in files]
 
@@ -69,38 +77,56 @@ def process_folder_files(orchestrator, folder_name, file_subset, dataset_type, l
     processed_count = 0
     failed_count = 0
     
-    logger.info(f"Processing {len(file_subset)} files from folder: {folder_name}")
-    
-    for file_path, file_stem in file_subset:
-        try:
-            exposure_id = f"{dataset_type}_{folder_name}_{file_stem}"
-            logger.info(f"Processing: {exposure_id}")
-            
-            # Process based on dataset type
-            if dataset_type == "EUCLID":
+    if dataset_type == "EUCLID":
+        # EUCLID: Process individual files
+        logger.info(f"Processing {len(file_subset)} EUCLID files from folder: {folder_name}")
+        
+        for file_path, file_stem in file_subset:
+            try:
+                exposure_id = f"{dataset_type}_{folder_name}_{file_stem}"
+                logger.info(f"Processing: {exposure_id}")
+                
                 success = orchestrator.euclid_processor._process_single_exposure(
                     processed_count, exposure_id, file_path, 
                     folder_name, Path(file_path).name
                 )
-            elif dataset_type == "CASE":
-                success = orchestrator.case_processor._process_single_exposure(
-                    processed_count, exposure_id, file_path,
-                    folder_name, Path(file_path).name
-                )
-            else:
-                logger.error(f"Unknown dataset type: {dataset_type}")
-                success = False
-            
-            if success:
-                processed_count += 1
-                logger.info(f"Successfully processed: {exposure_id}")
-            else:
+                
+                if success:
+                    processed_count += 1
+                    logger.info(f"Successfully processed: {exposure_id}")
+                else:
+                    failed_count += 1
+                    logger.error(f"Failed to process: {exposure_id}")
+                    
+            except Exception as e:
                 failed_count += 1
-                logger.error(f"Failed to process: {exposure_id}")
+                logger.error(f"Exception processing {file_path}: {str(e)}")
+    
+    elif dataset_type == "CASE":
+        # CASE: Process entire folder (not individual files!)
+        logger.info(f"Processing CASE folder: {folder_name} (entire folder)")
+        
+        try:
+            # Process the entire folder using the correct method
+            processed_exposures = orchestrator.case_processor.process_directory(
+                orchestrator.data_root_dir, [folder_name]
+            )
+            
+            processed_count = len(processed_exposures)
+            failed_count = 0
+            
+            logger.info(f"Successfully processed {processed_count} CASE exposures from folder {folder_name}")
+            
+            # Log each exposure
+            for exposure_id in processed_exposures:
+                logger.info(f"Successfully processed CASE exposure: {exposure_id}")
                 
         except Exception as e:
-            failed_count += 1
-            logger.error(f"Exception processing {file_path}: {str(e)}")
+            failed_count = 1  # One folder failed
+            logger.error(f"Exception processing CASE folder {folder_name}: {str(e)}")
+    
+    else:
+        logger.error(f"Unknown dataset type: {dataset_type}")
     
     return processed_count, failed_count
 
@@ -145,23 +171,6 @@ def main():
         config = load_config(args.config)
         logger.info(f"Loaded configuration from {args.config}")
         
-        # Get all files in the folder
-        logger.info(f"Getting files from folder: {args.folder_name}")
-        all_files = get_files_in_folder(args.data_root, args.folder_name, args.dataset_type)
-        logger.info(f"Found {len(all_files)} FITS files in folder")
-        
-        # Distribute files for this specific job
-        job_files, start_idx, end_idx = distribute_files_for_job(
-            all_files, args.job_within_folder, args.total_jobs_per_folder
-        )
-        
-        logger.info(f"Job {args.job_within_folder} processing files {start_idx}-{end_idx-1}")
-        logger.info(f"Processing {len(job_files)} files in this job")
-        
-        if not job_files:
-            logger.info("No files assigned to this job")
-            return 0
-        
         # Create orchestrator
         orchestrator = DataProcessingOrchestrator(
             data_root_dir=args.data_root,
@@ -174,12 +183,43 @@ def main():
         # Enable production mode with limited parallelism per task
         orchestrator.enable_production_mode(max_parallel_exposures=4)
         
-        # Process assigned files
-        start_time = time.time()
-        processed_count, failed_count = process_folder_files(
-            orchestrator, args.folder_name, job_files, args.dataset_type, logger
-        )
-        end_time = time.time()
+        # Handle CASE and EUCLID differently
+        if args.dataset_type == "CASE":
+            # CASE: Process entire folder at once (optimal)
+            logger.info("CASE dataset: Processing entire folder")
+            
+            start_time = time.time()
+            processed_count, failed_count = process_folder_files(
+                orchestrator, args.folder_name, [], args.dataset_type, logger
+            )
+            end_time = time.time()
+            
+        else:
+            # EUCLID: Get files and distribute among jobs
+            logger.info(f"Getting files from folder: {args.folder_name}")
+            all_files = get_files_in_folder(args.data_root, args.folder_name, args.dataset_type)
+            
+            file_type = "FITS" if args.dataset_type == "EUCLID" else "TIF"
+            logger.info(f"Found {len(all_files)} {file_type} files in folder")
+            
+            # Distribute files for this specific job
+            job_files, start_idx, end_idx = distribute_files_for_job(
+                all_files, args.job_within_folder, args.total_jobs_per_folder
+            )
+            
+            logger.info(f"Job {args.job_within_folder} processing files {start_idx}-{end_idx-1}")
+            logger.info(f"Processing {len(job_files)} files in this job")
+            
+            if not job_files:
+                logger.info("No files assigned to this job")
+                return 0
+            
+            # Process assigned files
+            start_time = time.time()
+            processed_count, failed_count = process_folder_files(
+                orchestrator, args.folder_name, job_files, args.dataset_type, logger
+            )
+            end_time = time.time()
         
         # Log completion statistics
         total_time = end_time - start_time
@@ -187,13 +227,14 @@ def main():
         logger.info(f"FOLDER JOB COMPLETED")
         logger.info(f"Folder: {args.folder_name}")
         logger.info(f"Job: {args.job_within_folder} of {args.total_jobs_per_folder}")
-        logger.info(f"Processed: {processed_count} files")
-        logger.info(f"Failed: {failed_count} files")
+        logger.info(f"Dataset type: {args.dataset_type}")
+        logger.info(f"Processed: {processed_count} items")
+        logger.info(f"Failed: {failed_count} items")
         logger.info(f"Total time: {total_time:.2f}s ({total_time/60:.1f} minutes)")
         
         if processed_count > 0:
             avg_time = total_time / processed_count
-            logger.info(f"Average time per file: {avg_time:.2f}s")
+            logger.info(f"Average time per item: {avg_time:.2f}s")
         
         # Return appropriate exit code
         if failed_count == 0:
@@ -203,7 +244,7 @@ def main():
             logger.warning(f"Folder job completed with {failed_count} failures")
             return 1
         else:
-            logger.error("Folder job failed - no files processed")
+            logger.error("Folder job failed - no items processed")
             return 2
             
     except Exception as e:
