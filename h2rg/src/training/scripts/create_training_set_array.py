@@ -6,6 +6,10 @@ from pathlib import Path
 import time
 import math
 import yaml
+import json
+import shutil
+import re
+from datetime import datetime
 
 # Add src directory to path for imports
 project_root = Path(__file__).parent.parent.parent.parent  # Go up to project root
@@ -30,6 +34,12 @@ def setup_logging(log_file: str, log_level: str = "INFO"):
     )
     return logging.getLogger(__name__)
 
+def create_job_specific_output_dir(base_output_dir: str, folder_name: str, job_id: int):
+    """Create job-specific output directory to avoid registry conflicts"""
+    job_output_dir = Path(base_output_dir) / "job_outputs" / f"{folder_name}_job_{job_id:03d}"
+    job_output_dir.mkdir(parents=True, exist_ok=True)
+    return str(job_output_dir)
+
 def get_files_in_folder(data_root: str, folder_name: str, dataset_type: str):
     """Get all files in a specific folder based on dataset type"""
     folder_path = Path(data_root) / folder_name
@@ -50,7 +60,6 @@ def get_files_in_folder(data_root: str, folder_name: str, dataset_type: str):
         
         # CRITICAL: Sort CASE files properly by E#### and N#### indices
         if files:
-            import re
             files = sorted(files, key=lambda x: (
                 int(re.search(r'_E(\d+)_', x.name).group(1)) if re.search(r'_E(\d+)_', x.name) else 0,
                 int(re.search(r'_N(\d+)\.tif', x.name).group(1)) if re.search(r'_N(\d+)\.tif', x.name) else 0
@@ -73,7 +82,9 @@ def distribute_files_for_job(file_list, job_within_folder, total_jobs_per_folder
     return job_files, start_idx, end_idx
 
 def process_folder_files(orchestrator, folder_name, file_subset, dataset_type, logger):
-    """Process a subset of files from a specific folder"""
+    """
+        
+    """
     processed_count = 0
     failed_count = 0
     
@@ -130,8 +141,114 @@ def process_folder_files(orchestrator, folder_name, file_subset, dataset_type, l
     
     return processed_count, failed_count
 
+def merge_job_registries(base_output_dir: str, folder_name: str, total_jobs: int, logger):
+    """
+        
+    """
+    main_output_dir = Path(base_output_dir)
+    main_registry_file = main_output_dir / 'processing_registry.json'
+    
+    # Load existing main registry if it exists
+    if main_registry_file.exists():
+        with open(main_registry_file, 'r') as f:
+            main_registry = json.load(f)
+    else:
+        main_registry = {
+            'processed_exposures': {},
+            'last_updated': datetime.now().isoformat(timespec='microseconds')
+        }
+    
+    # Merge all job registries
+    merged_count = 0
+    for job_id in range(1, total_jobs + 1):
+        job_output_dir = main_output_dir / "job_outputs" / f"{folder_name}_job_{job_id:03d}"
+        job_registry_file = job_output_dir / 'processing_registry.json'
+        
+        if job_registry_file.exists():
+            try:
+                with open(job_registry_file, 'r') as f:
+                    job_registry = json.load(f)
+                
+                # Merge processed exposures
+                for exposure_id, exposure_data in job_registry.get('processed_exposures', {}).items():
+                    main_registry['processed_exposures'][exposure_id] = exposure_data
+                    merged_count += 1
+                
+                logger.info(f"Merged registry from job {job_id}: {len(job_registry.get('processed_exposures', {}))} exposures")
+                
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning(f"Failed to load registry from job {job_id}: {e}")
+    
+    # Update timestamp and save merged registry
+    main_registry['last_updated'] = datetime.now().isoformat(timespec='microseconds')
+    
+    with open(main_registry_file, 'w') as f:
+        json.dump(main_registry, f, indent=2)
+    
+    logger.info(f"Merged {merged_count} exposures from {total_jobs} jobs into main registry")
+    return merged_count
+
+def copy_processed_data_to_main(base_output_dir: str, folder_name: str, total_jobs: int, logger):
+    """Copy processed data from job directories to main output directory"""
+    main_output_dir = Path(base_output_dir)
+    
+    # Data directories to merge
+    data_dirs = ['raw_differences', 'patches', 'temporal_analysis', 'metadata']
+    
+    copied_totals = {}
+    for data_dir in data_dirs:
+        main_data_dir = main_output_dir / data_dir
+        main_data_dir.mkdir(parents=True, exist_ok=True)
+        
+        copied_files = 0
+        for job_id in range(1, total_jobs + 1):
+            job_output_dir = main_output_dir / "job_outputs" / f"{folder_name}_job_{job_id:03d}"
+            job_data_dir = job_output_dir / data_dir
+            
+            if job_data_dir.exists():
+                for file_path in job_data_dir.glob('*'):
+                    if file_path.is_file():
+                        dest_path = main_data_dir / file_path.name
+                        if not dest_path.exists():
+                            shutil.copy2(file_path, dest_path)
+                            copied_files += 1
+                        else:
+                            logger.debug(f"File already exists, skipping: {file_path.name}")
+        
+        copied_totals[data_dir] = copied_files
+        logger.info(f"Copied {copied_files} files to {data_dir}/")
+    
+    return copied_totals
+
+def cleanup_job_directories(base_output_dir: str, folder_name: str, total_jobs: int, logger):
+    """Clean up job-specific directories after successful merge"""
+    main_output_dir = Path(base_output_dir)
+    job_outputs_dir = main_output_dir / "job_outputs"
+    
+    removed_count = 0
+    for job_id in range(1, total_jobs + 1):
+        job_output_dir = job_outputs_dir / f"{folder_name}_job_{job_id:03d}"
+        
+        if job_output_dir.exists():
+            try:
+                shutil.rmtree(job_output_dir)
+                removed_count += 1
+                logger.debug(f"Removed job directory: {job_output_dir}")
+            except OSError as e:
+                logger.warning(f"Failed to remove job directory {job_output_dir}: {e}")
+    
+    # Remove job_outputs directory if empty
+    if job_outputs_dir.exists() and not any(job_outputs_dir.iterdir()):
+        try:
+            job_outputs_dir.rmdir()
+            logger.info("Removed empty job_outputs directory")
+        except OSError:
+            pass
+    
+    logger.info(f"Cleaned up {removed_count} job directories")
+
 def main():
-    parser = argparse.ArgumentParser(description='Folder-based H2RG training set creation')
+    parser = argparse.ArgumentParser(description='Folder-based H2RG training set creation with isolated registries')
     parser.add_argument('--folder-name', type=str, required=True,
                         help='Name of the folder to process')
     parser.add_argument('--job-within-folder', type=int, required=True,
@@ -146,35 +263,84 @@ def main():
     parser.add_argument('--data-root', type=str, required=True,
                         help='Root directory for raw data')
     parser.add_argument('--output-dir', type=str, default='folder_output',
-                        help='Output directory for processed data')
-    parser.add_argument('--log-file', type=str, default='folder_processing.log',
-                        help='Log file path')
+                        help='Base output directory for processed data')
     parser.add_argument('--log-level', type=str, default='INFO',
                         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                         help='Logging level')
     
+    # Special mode for merging results
+    parser.add_argument('--merge-mode', action='store_true',
+                        help='Merge job registries and data into main output (run after all jobs complete)')
+    parser.add_argument('--cleanup-jobs', action='store_true',
+                        help='Clean up job directories after merging (use with --merge-mode)')
+    
     args = parser.parse_args()
     
-    # Setup logging
-    os.makedirs(os.path.dirname(args.log_file), exist_ok=True)
-    logger = setup_logging(args.log_file, args.log_level)
+    # Handle merge mode
+    if args.merge_mode:
+        log_file = Path(args.output_dir) / f'merge_{args.folder_name}.log'
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        logger = setup_logging(log_file, args.log_level)
+        
+        logger.info(f"=== Starting merge mode for folder: {args.folder_name} ===")
+        
+        try:
+            # Merge registries
+            merged_count = merge_job_registries(
+                args.output_dir, args.folder_name, args.total_jobs_per_folder, logger
+            )
+            
+            # Copy processed data
+            copied_totals = copy_processed_data_to_main(
+                args.output_dir, args.folder_name, args.total_jobs_per_folder, logger
+            )
+            
+            # Clean up job directories if requested
+            if args.cleanup_jobs:
+                cleanup_job_directories(
+                    args.output_dir, args.folder_name, args.total_jobs_per_folder, logger
+                )
+            
+            logger.info("="*60)
+            logger.info("MERGE COMPLETED SUCCESSFULLY")
+            logger.info(f"Merged {merged_count} exposure records")
+            for data_dir, count in copied_totals.items():
+                logger.info(f"Copied {count} files from {data_dir}/")
+            logger.info("="*60)
+            
+            return 0
+            
+        except Exception as e:
+            logger.error(f"Merge failed with exception: {str(e)}")
+            return 1
     
-    logger.info(f"=== Folder-based processing started ===")
+    # Regular processing mode with job isolation
+    
+    # Create job-specific output directory
+    job_output_dir = create_job_specific_output_dir(
+        args.output_dir, args.folder_name, args.job_within_folder
+    )
+    
+    # Setup logging with job-specific log file
+    log_file = Path(job_output_dir) / f'job_{args.job_within_folder:03d}_processing.log'
+    logger = setup_logging(log_file, args.log_level)
+    
+    logger.info(f"=== Folder-based processing started (JOB ISOLATED) ===")
     logger.info(f"Folder: {args.folder_name}")
     logger.info(f"Job: {args.job_within_folder} of {args.total_jobs_per_folder}")
     logger.info(f"Dataset type: {args.dataset_type}")
     logger.info(f"Data root: {args.data_root}")
-    logger.info(f"Output dir: {args.output_dir}")
+    logger.info(f"Job output dir: {job_output_dir}")
     
     try:
         # Load configuration
         config = load_config(args.config)
         logger.info(f"Loaded configuration from {args.config}")
         
-        # Create orchestrator
+        # Create orchestrator with job-specific output directory
         orchestrator = DataProcessingOrchestrator(
             data_root_dir=args.data_root,
-            root_dir=args.output_dir
+            root_dir=job_output_dir  # This prevents registry conflicts!
         )
         
         # Apply configuration
@@ -224,31 +390,42 @@ def main():
         # Log completion statistics
         total_time = end_time - start_time
         logger.info("="*60)
-        logger.info(f"FOLDER JOB COMPLETED")
+        logger.info(f"JOB COMPLETED (ISOLATED)")
         logger.info(f"Folder: {args.folder_name}")
         logger.info(f"Job: {args.job_within_folder} of {args.total_jobs_per_folder}")
         logger.info(f"Dataset type: {args.dataset_type}")
         logger.info(f"Processed: {processed_count} items")
         logger.info(f"Failed: {failed_count} items")
         logger.info(f"Total time: {total_time:.2f}s ({total_time/60:.1f} minutes)")
+        logger.info(f"Job output saved to: {job_output_dir}")
         
         if processed_count > 0:
             avg_time = total_time / processed_count
             logger.info(f"Average time per item: {avg_time:.2f}s")
         
+        logger.info("="*60)
+        logger.info("NEXT STEPS:")
+        logger.info("1. Wait for all jobs to complete")
+        logger.info("2. Run with --merge-mode to combine results:")
+        logger.info(f"   python {Path(__file__).name} --folder-name {args.folder_name} "
+                   f"--job-within-folder 1 --total-jobs-per-folder {args.total_jobs_per_folder} "
+                   f"--dataset-type {args.dataset_type} --config {args.config} "
+                   f"--data-root {args.data_root} --output-dir {args.output_dir} --merge-mode")
+        logger.info("="*60)
+        
         # Return appropriate exit code
         if failed_count == 0:
-            logger.info("Folder job completed successfully!")
+            logger.info("Job completed successfully!")
             return 0
         elif processed_count > 0:
-            logger.warning(f"Folder job completed with {failed_count} failures")
+            logger.warning(f"Job completed with {failed_count} failures")
             return 1
         else:
-            logger.error("Folder job failed - no items processed")
+            logger.error("Job failed - no items processed")
             return 2
             
     except Exception as e:
-        logger.error(f"Folder job failed with exception: {str(e)}")
+        logger.error(f"Job failed with exception: {str(e)}")
         return 3
 
 if __name__ == "__main__":
