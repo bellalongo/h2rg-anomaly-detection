@@ -45,7 +45,7 @@ training:
 # Data Configuration
 data:
   # Path to your processed data (will be overridden by command line if provided)
-  processed_data_path: "/projects/ilongo/processed_data/job_outputs"
+  processed_data_path: "/projects/JWST_planets/ilongo/processed_data/job_outputs"
   
   # Data filtering
   patch_size: 128                   # Actual patch size in pixels from your HDF5 files
