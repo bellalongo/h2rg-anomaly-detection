@@ -1,0 +1,170 @@
+# ViT-VAE Training Configuration for H2RG Anomaly Detection
+# Optimized for fast training at end of internship with checkpoints saved to /projects/
+
+# Model Architecture
+model:
+  patch_size: 16                    # Patch size in pixels (actual image patch will be patch_size * 32 = 512)
+  embed_dim: 768                    # Transformer embedding dimension
+  num_heads: 12                     # Number of attention heads
+  num_layers: 6                     # Number of transformer layers (reduced for speed)
+  latent_dim: 256                   # VAE latent space dimension
+  dropout: 0.1                      # Dropout rate
+  use_gradient_checkpointing: true  # Enable gradient checkpointing for memory efficiency
+  image_size: [512, 512]           # Input image size
+
+# Training Configuration
+training:
+  # Basic training parameters
+  max_epochs: 50                    # Maximum training epochs (adjust based on time available)
+  batch_size: 8                     # Batch size (adjust based on GPU memory)
+  learning_rate: 1e-4               # Initial learning rate
+  weight_decay: 1e-5                # Weight decay for regularization
+  
+  # Loss weights
+  kl_weight: 0.1                    # KL divergence weight (beta in beta-VAE)
+  temporal_weight: 0.2              # Temporal classification loss weight
+  
+  # Optimization settings
+  use_amp: true                     # Use automatic mixed precision for speed
+  max_grad_norm: 1.0                # Gradient clipping
+  
+  # Fast training options
+  max_steps_per_epoch: 200          # Limit steps per epoch for faster training
+  max_train_samples: 10000          # Limit total training samples
+  max_val_samples: 2000             # Limit validation samples
+  
+  # Early stopping
+  patience: 10                      # Early stopping patience
+  
+  # Data loading
+  num_workers: 4                    # Number of data loading workers
+  
+  # Checkpointing
+  save_every_n_epochs: 5            # Save checkpoint every N epochs
+
+# Data Configuration
+data:
+  # Path to your processed data (will be overridden by command line if provided)
+  processed_data_path: "/projects/ilongo/processed_data/job_outputs"
+  
+  # Data filtering
+  patch_size: 512                   # Actual patch size in pixels from your HDF5 files
+  min_anomaly_score: 1.0            # Minimum anomaly score threshold
+  max_samples_per_job: 500          # Maximum samples per job folder (for speed)
+  max_val_samples_per_job: 100      # Maximum validation samples per job
+  
+  # Data processing
+  temporal_classification: true     # Use temporal classification
+  cache_in_memory: false            # Cache data in memory (only for small datasets)
+  data_augmentation: true           # Use data augmentation for training
+  normalize_patches: true           # Normalize patches for training
+  
+  # Train/validation split
+  val_split: 0.2                    # Fraction of job folders for validation
+
+# Output Configuration - CHECKPOINTS SAVED TO /projects/ FOR LARGE FILES
+output:
+  # Main output directory (lightweight files like logs, config)
+  output_dir: "./results/models"
+  
+  # Large checkpoint directory - YOUR REQUESTED PATH
+  checkpoint_dir: "/projects/JWST_planets/ilongo/models"
+  
+  # Checkpoint settings
+  save_model_every_epoch: false     # Save model every epoch (set false for speed)
+  save_best_only: true              # Only save best model
+  max_checkpoints_to_keep: 3        # Keep only recent checkpoints to save space
+
+# Hardware Configuration
+hardware:
+  device: "cuda"                    # Device to use (cuda/cpu)
+  mixed_precision: true             # Use mixed precision training
+  
+# Logging and Monitoring
+logging:
+  use_wandb: false                  # Set to true if you have wandb setup
+  wandb_project: "h2rg-vit-vae"     # Wandb project name
+  log_every_n_steps: 50             # Log metrics every N steps
+  
+# Fast Training Presets
+# Uncomment one of these for different speed/quality tradeoffs
+
+# Ultra Fast (for quick testing - 10-15 minutes)
+fast_training:
+  enabled: false
+  max_epochs: 10
+  max_steps_per_epoch: 50
+  max_train_samples: 2000
+  max_val_samples: 500
+  batch_size: 16
+  num_layers: 4
+
+# Balanced (good quality in ~30-45 minutes) - RECOMMENDED FOR END OF INTERNSHIP
+balanced_training:
+  enabled: true                     # ← ENABLED BY DEFAULT
+  max_epochs: 30
+  max_steps_per_epoch: 200
+  max_train_samples: 8000
+  max_val_samples: 2000
+  batch_size: 8
+  num_layers: 6
+
+# Quality (best results in 1-2 hours)
+quality_training:
+  enabled: false
+  max_epochs: 100
+  max_steps_per_epoch: null         # Use full dataset
+  max_train_samples: null           # Use all samples
+  max_val_samples: null             # Use all validation samples
+  batch_size: 4
+  num_layers: 8
+
+# Anomaly Classification Labels
+# These correspond to your temporal classification system
+anomaly_classes:
+  0: "normal"
+  1: "snowball"      # Medium size, circular, sudden appearance, high persistence
+  2: "cosmic_ray"    # High intensity, elongated, sudden appearance, high persistence  
+  3: "telegraph"     # Small, isolated, sudden appearance, lower persistence
+  4: "hot_pixel"     # Present from frame 0, high persistence
+
+# Advanced Configuration
+advanced:
+  # Memory optimization
+  gradient_accumulation_steps: 1    # Accumulate gradients over multiple steps
+  dataloader_pin_memory: true       # Pin memory for faster GPU transfer
+  
+  # Model optimization
+  compile_model: false              # Use torch.compile (PyTorch 2.0+, can cause issues)
+  
+  # Distributed training (if using multiple GPUs)
+  distributed: false
+  world_size: 1
+  rank: 0
+  
+  # Checkpoint compression (to save space)
+  compress_checkpoints: true        # Compress checkpoint files
+
+# Resume Training
+resume:
+  checkpoint_path: null             # Path to checkpoint to resume from
+  resume_optimizer: true            # Resume optimizer state
+  resume_scheduler: true            # Resume learning rate scheduler
+
+# Evaluation
+evaluation:
+  eval_every_n_epochs: 5            # Evaluate every N epochs
+  compute_metrics: true             # Compute additional metrics
+  save_predictions: false           # Save predictions for analysis (uses disk space)
+
+# Memory and Performance Tips
+# - If GPU out of memory: reduce batch_size to 4 or 2
+# - If training too slow: enable fast_training preset
+# - If want best quality: enable quality_training preset
+# - Checkpoints will be saved to /projects/JWST_planets/ilongo/models (large files)
+# - Logs and configs saved to ./results/models (small files)
+
+# Expected Training Times (approximate):
+# - fast_training: 10-15 minutes
+# - balanced_training: 30-45 minutes  
+# - quality_training: 1-2 hours
