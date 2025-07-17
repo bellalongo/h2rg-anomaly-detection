@@ -158,7 +158,7 @@ class ViTVAETrainer:
         
         # Log gradient checkpointing status
         if hasattr(self.model, 'use_gradient_checkpointing'):
-            self.logger.info(f"  Gradient checkpointing: {'Success' if self.model.use_gradient_checkpointing else 'Failur'}")
+            self.logger.info(f"  Gradient checkpointing: {'Success' if self.model.use_gradient_checkpointing else 'Failure'}")
     
     def setup_optimizer(self):
         """Setup optimizer and learning rate scheduler"""
@@ -242,7 +242,7 @@ class ViTVAETrainer:
             
             # Forward pass with mixed precision
             if self.scaler:
-                with autocast():
+                with autocast(device_type=self.device.type):
                     outputs = self.model(patches)
                     loss_dict = self.model.compute_loss(
                         patches, outputs, temporal_labels,
@@ -341,7 +341,7 @@ class ViTVAETrainer:
                 temporal_labels = batch['temporal_label'].to(self.device, non_blocking=True)
                 
                 if self.scaler:
-                    with autocast():
+                    with autocast(device_type=self.device.type):
                         outputs = self.model(patches)
                         loss_dict = self.model.compute_loss(
                             patches, outputs, temporal_labels,
