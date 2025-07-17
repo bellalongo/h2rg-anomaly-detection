@@ -158,7 +158,7 @@ class ViTVAETrainer:
         
         # Log gradient checkpointing status
         if hasattr(self.model, 'use_gradient_checkpointing'):
-            self.logger.info(f"  Gradient checkpointing: {'✅' if self.model.use_gradient_checkpointing else '❌'}")
+            self.logger.info(f"  Gradient checkpointing: {'Success' if self.model.use_gradient_checkpointing else 'Failure'}")
     
     def setup_optimizer(self):
         """Setup optimizer and learning rate scheduler"""

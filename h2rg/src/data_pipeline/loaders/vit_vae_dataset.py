@@ -86,16 +86,21 @@ class JobBasedAnomalyDataset(Dataset):
         """Index a single job folder for available data"""
         samples = []
         
+        # Look in the patches subdirectory
+        patches_dir = job_folder / "patches"
+        if not patches_dir.exists():
+            return samples
+        
         # Find patch files for the requested patch size
-        patch_files = list(job_folder.glob(f"*_patches_{self.patch_size}.h5"))
+        patch_files = list(patches_dir.glob(f"*_patches_{self.patch_size}.h5"))
         
         for patch_file in patch_files:
             # Extract base name to find corresponding files
             base_name = patch_file.stem.replace(f"_patches_{self.patch_size}", "")
             
-            # Find corresponding temporal and metadata files
-            temporal_file = job_folder / f"{base_name}_temporal.h5"
-            metadata_file = job_folder / f"{base_name}_metadata.json"
+            # Find corresponding temporal and metadata files in their subdirectories
+            temporal_file = job_folder / "temporal_analysis" / f"{base_name}_temporal.h5"
+            metadata_file = job_folder / "metadata" / f"{base_name}_metadata.json"
             
             # Validate required files exist
             if not temporal_file.exists():

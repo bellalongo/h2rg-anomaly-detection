@@ -10,7 +10,7 @@ model:
   latent_dim: 256                   # VAE latent space dimension
   dropout: 0.1                      # Dropout rate
   use_gradient_checkpointing: true  # Enable gradient checkpointing for memory efficiency
-  image_size: [128, 128]           # Input image size
+  image_size: [128, 128]            # Input image size
 
 # Training Configuration
 training:
@@ -30,8 +30,8 @@ training:
   
   # Fast training options
   max_steps_per_epoch: 200          # Limit steps per epoch for faster training
-  max_train_samples: 10000          # Limit total training samples
-  max_val_samples: 2000             # Limit validation samples
+  max_train_samples: 5000           # Limit total training samples
+  max_val_samples: 1000             # Limit validation samples
   
   # Early stopping
   patience: 10                      # Early stopping patience
@@ -50,8 +50,8 @@ data:
   # Data filtering
   patch_size: 128                   # Actual patch size in pixels from your HDF5 files
   min_anomaly_score: 1.0            # Minimum anomaly score threshold
-  max_samples_per_job: 500          # Maximum samples per job folder (for speed)
-  max_val_samples_per_job: 100      # Maximum validation samples per job
+  max_samples_per_job: 50           # Maximum samples per job folder (for speed)
+  max_val_samples_per_job: 20       # Maximum validation samples per job
   
   # Data processing
   temporal_classification: true     # Use temporal classification
