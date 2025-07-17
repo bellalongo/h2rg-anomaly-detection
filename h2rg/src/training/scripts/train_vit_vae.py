@@ -51,7 +51,7 @@ class FastViTVAETrainer:
         
         # Initialize trainer
         self.trainer = ViTVAETrainer(self.config, str(self.output_dir))
-        
+            
     def load_config(self) -> dict:
         """Load and validate configuration"""
         if not self.config_path.exists():
@@ -59,6 +59,26 @@ class FastViTVAETrainer:
         
         with open(self.config_path, 'r') as f:
             config = yaml.safe_load(f)
+        
+        # Fix YAML parsing issues with scientific notation
+        def fix_numeric_values(obj):
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    obj[key] = fix_numeric_values(value)
+            elif isinstance(obj, list):
+                return [fix_numeric_values(item) for item in obj]
+            elif isinstance(obj, str):
+                # Try to convert string numbers back to float
+                try:
+                    if 'e-' in obj or 'e+' in obj:  # Scientific notation
+                        return float(obj)
+                    elif obj.replace('.', '').replace('-', '').isdigit():  # Regular numbers
+                        return float(obj) if '.' in obj else int(obj)
+                except ValueError:
+                    pass
+            return obj
+        
+        config = fix_numeric_values(config)
         
         # Validate required sections
         required_sections = ['model', 'training', 'data']

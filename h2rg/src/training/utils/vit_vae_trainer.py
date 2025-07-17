@@ -158,37 +158,18 @@ class ViTVAETrainer:
         
         # Log gradient checkpointing status
         if hasattr(self.model, 'use_gradient_checkpointing'):
-            self.logger.info(f"  Gradient checkpointing: {'Success' if self.model.use_gradient_checkpointing else 'Failure'}")
+            self.logger.info(f"  Gradient checkpointing: {'Success' if self.model.use_gradient_checkpointing else 'Failur'}")
     
     def setup_optimizer(self):
         """Setup optimizer and learning rate scheduler"""
         # Optimizer with optimized settings for fast convergence
-        # DEBUG: Check what we're actually getting
-        lr_value = self.config['training']['learning_rate']
-        print(f"DEBUG: Learning rate value: {lr_value}")
-        print(f"DEBUG: Learning rate type: {type(lr_value)}")
-        print(f"DEBUG: Weight decay value: {self.config['training']['weight_decay']}")
-        print(f"DEBUG: Weight decay type: {type(self.config['training']['weight_decay'])}")
-        
-        # Convert to float just in case
-        lr_value = float(lr_value)
-        wd_value = float(self.config['training']['weight_decay'])
-        
-        # Optimizer with optimized settings for fast convergence
         self.optimizer = optim.AdamW(
             self.model.parameters(),
-            lr=lr_value,  # Use the converted value
-            weight_decay=wd_value,  # Use the converted value
+            lr=self.config['training']['learning_rate'],
+            weight_decay=self.config['training']['weight_decay'],
             betas=(0.9, 0.999),
             eps=1e-8
         )
-        # self.optimizer = optim.AdamW(
-        #     self.model.parameters(),
-        #     lr=self.config['training']['learning_rate'],
-        #     weight_decay=self.config['training']['weight_decay'],
-        #     betas=(0.9, 0.999),
-        #     eps=1e-8
-        # )
         
         # Learning rate scheduler for fast training
         total_steps = self._calculate_total_steps()
