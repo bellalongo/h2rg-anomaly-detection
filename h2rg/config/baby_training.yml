@@ -1,0 +1,173 @@
+# ViT-VAE SUBSET Training Configuration - Smart Approach
+# Train on manageable subset first, then scale up if needed
+
+# Model Architecture - Same as before
+model:
+  patch_size: 16                    
+  embed_dim: 768                    
+  num_heads: 12                     
+  num_layers: 6                     
+  latent_dim: 256                   
+  dropout: 0.1                      
+  use_gradient_checkpointing: true  
+  image_size: [128, 128]            
+
+# Training Configuration - SUBSET OPTIMIZED
+training:
+  # Core parameters
+  max_epochs: 20                    # Fewer epochs for subset (can always resume)
+  batch_size: 32                    # Keep large batch size for efficiency
+  learning_rate: 8e-4               # Same as full training
+  weight_decay: 1e-5                
+  
+  # Loss weights
+  kl_weight: 0.1                    
+  temporal_weight: 0.2              
+  
+  # Optimization settings
+  use_amp: true                     
+  max_grad_norm: 1.0                
+  
+  # SMART SUBSET LIMITATIONS:
+  max_train_samples: 50000          # 50K samples (manageable subset)
+  max_val_samples: 10000            # 10K validation samples
+  max_samples_per_job: 200          # More samples per job than before
+  max_val_samples_per_job: 50       # More validation per job
+  
+  # Early stopping
+  patience: 5                       # Shorter patience for subset
+  
+  # A100-optimized data loading
+  num_workers: 16                   
+  
+  # Checkpointing
+  save_every_n_epochs: 3            # Save more frequently for subset
+
+# Data Configuration - SUBSET FOCUSED
+data:
+  processed_data_path: "/projects/JWST_planets/ilongo/processed_data/job_outputs"
+  
+  # Data filtering - BALANCED SUBSET
+  patch_size: 128                   
+  min_anomaly_score: 1.0            
+  max_samples_per_job: 200          # Reasonable per-job limit
+  max_val_samples_per_job: 50       # Reasonable validation per job
+  
+  # Data processing
+  temporal_classification: true     
+  cache_in_memory: false            
+  data_augmentation: true           
+  normalize_patches: true           
+  
+  # Train/validation split
+  val_split: 0.2                    
+
+# A100-Optimized Data Loading - Same as before
+dataloader_settings:
+  num_workers: 16                   
+  pin_memory: true                  
+  persistent_workers: true          
+  prefetch_factor: 8                
+  drop_last: false                  
+
+# Output Configuration - Same paths
+output:
+  output_dir: "./results/models"
+  checkpoint_dir: "/projects/JWST_planets/ilongo/models"
+  save_model_every_epoch: false     
+  save_best_only: false             
+  max_checkpoints_to_keep: 3        
+
+# Hardware Configuration
+hardware:
+  device: "cuda"                    
+  mixed_precision: true             
+
+# Logging - More frequent for subset
+logging:
+  use_wandb: false                  
+  wandb_project: "h2rg-vit-vae-subset"     
+  log_every_n_steps: 10             # More frequent logging for subset
+  
+# SUBSET TRAINING PRESET - ENABLED
+subset_training:
+  enabled: true                     # Custom preset for subset
+  max_epochs: 20                    # Reasonable for subset
+  max_train_samples: 50000          # 50K training samples
+  max_val_samples: 10000            # 10K validation samples
+  batch_size: 32                    # Keep efficient batch size
+  num_layers: 6                     # Full model complexity
+
+# Disable other presets
+fast_training:
+  enabled: false
+balanced_training:
+  enabled: false                    # Disable in favor of subset_training
+quality_training:
+  enabled: false
+
+# Anomaly Classification Labels - Same as before
+anomaly_classes:
+  0: "normal"
+  1: "snowball"
+  2: "cosmic_ray"
+  3: "telegraph"
+  4: "hot_pixel"
+
+# Advanced Configuration - Same optimizations
+advanced:
+  gradient_accumulation_steps: 1    
+  dataloader_pin_memory: true       
+  compile_model: true               
+  distributed: false
+  world_size: 1
+  rank: 0
+  compress_checkpoints: true        
+
+# Resume Training - Important for scaling up later
+resume:
+  checkpoint_path: null             
+  resume_optimizer: true            
+  resume_scheduler: true            
+
+# Evaluation - Frequent for subset
+evaluation:
+  eval_every_n_epochs: 2            # More frequent validation
+  compute_metrics: true             
+  save_predictions: true            # Save predictions for analysis
+
+# SUBSET TRAINING STRATEGY:
+# Phase 1: Train on 50K samples (this config)
+#   - Expected time: 30-60 minutes
+#   - Validates model architecture and training pipeline
+#   - Gets you a working model quickly
+#   - Identifies any issues early
+
+# Phase 2: Scale up (modify config later)
+#   - Increase max_train_samples to 200K-500K
+#   - Resume from best checkpoint
+#   - Expected time: 2-6 hours
+
+# Phase 3: Full training (if needed)
+#   - Remove all limitations
+#   - Resume from Phase 2 checkpoint
+#   - Expected time: 8-20 hours
+
+# EXPECTED SUBSET PERFORMANCE:
+# - Training time: 30-60 minutes
+# - GPU utilization: 85-95%
+# - Memory usage: ~30-50GB out of 80GB
+# - Learning quality: Good representation of full dataset
+
+# BENEFITS OF SUBSET APPROACH:
+# ✅ Fast iteration and debugging
+# ✅ Validate approach works before committing huge compute
+# ✅ Can analyze results and adjust hyperparameters
+# ✅ Much cheaper compute cost
+# ✅ Can always scale up with resume training
+
+# SCALING UP LATER:
+# 1. Take best checkpoint from subset training
+# 2. Modify config to increase sample limits
+# 3. Resume training with: resume.checkpoint_path: "path/to/best_model.pth"
+# 4. Train for additional epochs on larger dataset
