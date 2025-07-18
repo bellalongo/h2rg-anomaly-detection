@@ -14,6 +14,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 import warnings
+from torch.utils.data import Subset
 
 
 class JobBasedAnomalyDataset(Dataset):
@@ -439,25 +440,18 @@ class JobDataLoaderFactory:
                                config: Dict,
                                val_split: float = 0.2) -> Tuple[DataLoader, DataLoader]:
         """Create train and validation data loaders"""
-        
         # Get all job folders
-        job_path = Path(job_outputs_dir)
-        job_folders = [f.name for f in job_path.iterdir() if f.is_dir()]
+        job_folders = [f.name for f in Path(job_outputs_dir).iterdir() if f.is_dir()]
+        job_folders.sort()
         
-        if len(job_folders) == 0:
-            raise ValueError(f"No job folders found in {job_outputs_dir}")
-        
-        # Split job folders into train and validation
-        np.random.seed(42)  # For reproducible splits
-        np.random.shuffle(job_folders)
-        
-        val_size = max(1, int(len(job_folders) * val_split))
-        train_folders = job_folders[:-val_size] if val_size < len(job_folders) else job_folders
+        # Split into train/val
+        val_size = int(len(job_folders) * val_split)
+        train_folders = job_folders[:-val_size] if val_size > 0 else job_folders
         val_folders = job_folders[-val_size:]
         
         print(f"Train folders: {len(train_folders)}, Val folders: {len(val_folders)}")
         
-        # Create datasets
+        # Create datasets with per-job limits
         train_dataset = JobBasedAnomalyDataset(
             job_outputs_dir=job_outputs_dir,
             patch_size=config.get('patch_size', 512),
@@ -482,7 +476,29 @@ class JobDataLoaderFactory:
             normalize_patches=config.get('normalize_patches', True)
         )
         
-        print(f"Train samples: {len(train_dataset)}, Val samples: {len(val_dataset)}")
+        print(f"Full datasets - Train samples: {len(train_dataset)}, Val samples: {len(val_dataset)}")
+        
+        # ===== FIX: Apply global sample limits =====
+        
+        # Apply global training sample limit
+        max_train_samples = config.get('max_train_samples', None)
+        if max_train_samples is not None and len(train_dataset) > max_train_samples:
+            # Create a subset of the training dataset
+            train_indices = list(range(min(max_train_samples, len(train_dataset))))
+            train_dataset = Subset(train_dataset, train_indices)
+            print(f"Applied max_train_samples limit: {len(train_dataset)} samples")
+        
+        # Apply global validation sample limit  
+        max_val_samples = config.get('max_val_samples', None)
+        if max_val_samples is not None and len(val_dataset) > max_val_samples:
+            # Create a subset of the validation dataset
+            val_indices = list(range(min(max_val_samples, len(val_dataset))))
+            val_dataset = Subset(val_dataset, val_indices)
+            print(f"Applied max_val_samples limit: {len(val_dataset)} samples")
+        
+        # ===== End of fix =====
+        
+        print(f"Final datasets - Train samples: {len(train_dataset)}, Val samples: {len(val_dataset)}")
         
         # Create data loaders
         train_loader = DataLoader(
