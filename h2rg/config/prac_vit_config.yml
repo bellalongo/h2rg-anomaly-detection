@@ -1,0 +1,187 @@
+# ViT-VAE Training Configuration - OPTIMIZED FOR LEARNING + GPU SPEED
+# Removes limitations, enables balanced training, maximizes GPU utilization
+
+# Model Architecture
+model:
+  patch_size: 16                    # Patch size in pixels (actual image patch will be patch_size * 32 = 512)
+  embed_dim: 768                    # Transformer embedding dimension
+  num_heads: 12                     # Number of attention heads
+  num_layers: 6                     # Number of transformer layers
+  latent_dim: 256                   # VAE latent space dimension
+  dropout: 0.1                      # Dropout rate
+  use_gradient_checkpointing: true  # Enable gradient checkpointing for memory efficiency
+  image_size: [128, 128]            # Input image size
+
+# Training Configuration - OPTIMIZED FOR PROPER LEARNING
+training:
+  # Core parameters for quality learning
+  max_epochs: 30                    # Sufficient for convergence (was 20)
+  batch_size: 16                    # Good for learning (try 24/32 if GPU allows)
+  learning_rate: 4e-4               # Scaled with batch size increase (was 2e-4)
+  weight_decay: 1e-5                # Weight decay for regularization
+  
+  # Loss weights - tuned for anomaly detection
+  kl_weight: 0.1                    # KL divergence weight (beta in beta-VAE)
+  temporal_weight: 0.2              # Temporal classification loss weight
+  
+  # Optimization settings
+  use_amp: true                     # Use automatic mixed precision for speed
+  max_grad_norm: 1.0                # Gradient clipping
+  
+  # REMOVED LIMITATIONS FOR PROPER LEARNING - these were killing your model's ability to learn:
+  # max_steps_per_epoch: 100        # ← REMOVED - was limiting to only 100 steps per epoch
+  # max_train_samples: 1600         # ← REMOVED - was limiting to only 1600 samples  
+  # max_val_samples: 400            # ← REMOVED - was limiting validation data
+  
+  # Early stopping
+  patience: 8                       # Increased patience for better convergence
+  
+  # Optimized data loading - MAJOR SPEED BOOST
+  num_workers: 8                    # Increased from 2 - parallel data loading
+  
+  # Checkpointing
+  save_every_n_epochs: 5            # Save less frequently (was 10)
+
+# Data Configuration - Same as before but optimized
+data:
+  # Path to your processed data (will be overridden by command line if provided)
+  processed_data_path: "/projects/JWST_planets/ilongo/processed_data/job_outputs"
+  
+  # Data filtering - REMOVED LIMITATIONS for proper learning
+  patch_size: 128                   # Actual patch size in pixels from your HDF5 files
+  min_anomaly_score: 1.0            # Minimum anomaly score threshold
+  # max_samples_per_job: 50         # ← REMOVED - use all available samples
+  # max_val_samples_per_job: 20     # ← REMOVED - use all validation samples
+  
+  # Data processing
+  temporal_classification: true     # Use temporal classification
+  cache_in_memory: false            # Cache data in memory (only for small datasets)
+  data_augmentation: true           # Use data augmentation for training
+  normalize_patches: true           # Normalize patches for training
+  
+  # Train/validation split
+  val_split: 0.2                    # Fraction of job folders for validation
+
+# Advanced Data Loading Optimization - NEW SECTION
+dataloader_settings:
+  num_workers: 8                    # Parallel data loading workers
+  pin_memory: true                  # Pin memory for faster GPU transfer
+  persistent_workers: true          # Keep workers alive between epochs
+  prefetch_factor: 4                # Prefetch more batches
+  drop_last: false                  # Use all data, don't drop incomplete batches
+
+# Output Configuration - CHECKPOINTS SAVED TO /projects/ FOR LARGE FILES
+output:
+  # Main output directory (lightweight files like logs, config)
+  output_dir: "./results/models"
+  
+  # Large checkpoint directory - YOUR REQUESTED PATH
+  checkpoint_dir: "/projects/JWST_planets/ilongo/models"
+  
+  # Checkpoint settings
+  save_model_every_epoch: false     # Save model every epoch (set false for speed)
+  save_best_only: false             # Save progress for analysis (changed from true)
+  max_checkpoints_to_keep: 5        # Keep more checkpoints for analysis
+
+# Hardware Configuration
+hardware:
+  device: "cuda"                    # Device to use (cuda/cpu)
+  mixed_precision: true             # Use mixed precision training
+  
+# Logging and Monitoring - Enhanced for learning tracking
+logging:
+  use_wandb: false                  # Set to true if you have wandb setup
+  wandb_project: "h2rg-vit-vae"     # Wandb project name
+  log_every_n_steps: 25             # More frequent logging to monitor learning (was 50)
+  
+# TRAINING PRESETS - BALANCED TRAINING ENABLED FOR QUALITY + SPEED
+
+# Ultra Fast (for quick testing - 10-15 minutes)
+fast_training:
+  enabled: false                    # Disabled - too fast for proper learning
+  max_epochs: 10
+  max_steps_per_epoch: 50
+  max_train_samples: 2000
+  max_val_samples: 500
+  batch_size: 16
+  num_layers: 4
+
+# Balanced (good quality in ~30-45 minutes) - ENABLED FOR OPTIMAL LEARNING
+balanced_training:
+  enabled: true                     # ← ENABLED - perfect balance of speed and learning
+  max_epochs: 30                    # Good learning duration
+  max_steps_per_epoch: null         # Use full dataset each epoch (was 200)
+  max_train_samples: null           # Use all training data (was 8000)
+  max_val_samples: null             # Use all validation data (was 2000)
+  batch_size: 16                    # Optimized batch size (increased from 8)
+  num_layers: 6                     # Good for learning
+
+# Quality (best results in 1-2 hours)
+quality_training:
+  enabled: false                    # Disabled - too slow for your timeline
+  max_epochs: 100
+  max_steps_per_epoch: null
+  max_train_samples: null
+  max_val_samples: null
+  batch_size: 4
+  num_layers: 8
+
+# Anomaly Classification Labels
+# These correspond to your temporal classification system
+anomaly_classes:
+  0: "normal"
+  1: "snowball"                     # Medium size, circular, sudden appearance, high persistence
+  2: "cosmic_ray"                   # High intensity, elongated, sudden appearance, high persistence  
+  3: "telegraph"                    # Small, isolated, sudden appearance, lower persistence
+  4: "hot_pixel"                    # Present from frame 0, high persistence
+
+# Advanced Configuration - GPU and Memory Optimizations
+advanced:
+  # Memory optimization
+  gradient_accumulation_steps: 1    # Start with 1, increase if batch size too small
+  dataloader_pin_memory: true       # Pin memory for faster GPU transfer
+  
+  # Model optimization - ENABLE COMPILATION FOR SPEED
+  compile_model: true               # Enable torch.compile for 20-30% speedup (was false)
+  
+  # Distributed training (if using multiple GPUs)
+  distributed: false
+  world_size: 1
+  rank: 0
+  
+  # Checkpoint compression (to save space)
+  compress_checkpoints: true        # Compress checkpoint files
+
+# Resume Training
+resume:
+  checkpoint_path: null             # Path to checkpoint to resume from
+  resume_optimizer: true            # Resume optimizer state
+  resume_scheduler: true            # Resume learning rate scheduler
+
+# Evaluation - More frequent for learning monitoring
+evaluation:
+  eval_every_n_epochs: 3            # More frequent validation (was 5)
+  compute_metrics: true             # Compute additional metrics
+  save_predictions: false           # Save predictions for analysis (uses disk space)
+
+# Memory and Performance Tips
+# OPTIMIZED SETTINGS:
+# ✅ Full dataset usage - no artificial limits
+# ✅ Balanced training enabled - 30-45 minute quality training
+# ✅ Parallel data loading - 8 workers eliminate I/O bottlenecks  
+# ✅ Model compilation enabled - 20-30% speed boost
+# ✅ Proper batch size and learning rate scaling
+# ✅ Sufficient epochs for convergence
+# ✅ Mixed precision for memory efficiency
+
+# Expected Results:
+# - Training time: 30-45 minutes (instead of 1-2 hours)
+# - GPU utilization: 80-95% (instead of 30-50%)
+# - Learning quality: Full dataset, proper convergence
+# - Memory usage: Optimized with gradient checkpointing
+
+# Performance Monitoring:
+# - Watch GPU usage: nvidia-smi -l 1
+# - Monitor validation loss - should decrease steadily
+# - If OOM: reduce batch_size to 12, then 8, then 4
+# - If GPU underutilized: increase num_workers to 12
