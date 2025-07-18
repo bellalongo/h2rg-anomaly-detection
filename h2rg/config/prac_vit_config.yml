@@ -1,5 +1,5 @@
-# ViT-VAE Training Configuration - OPTIMIZED FOR LEARNING + GPU SPEED
-# Removes limitations, enables balanced training, maximizes GPU utilization
+# ViT-VAE Training Configuration - OPTIMIZED FOR A100 80GB + LEARNING
+# Maximizes your A100's capabilities while ensuring quality learning
 
 # Model Architecture
 model:
@@ -12,12 +12,12 @@ model:
   use_gradient_checkpointing: true  # Enable gradient checkpointing for memory efficiency
   image_size: [128, 128]            # Input image size
 
-# Training Configuration - OPTIMIZED FOR PROPER LEARNING
+# Training Configuration - OPTIMIZED FOR A100 80GB
 training:
-  # Core parameters for quality learning
-  max_epochs: 30                    # Sufficient for convergence (was 20)
-  batch_size: 16                    # Good for learning (try 24/32 if GPU allows)
-  learning_rate: 4e-4               # Scaled with batch size increase (was 2e-4)
+  # Core parameters optimized for A100
+  max_epochs: 30                    # Sufficient for convergence
+  batch_size: 32                    # A100 can handle this easily (try 48 if this works)
+  learning_rate: 8e-4               # Scaled with increased batch size
   weight_decay: 1e-5                # Weight decay for regularization
   
   # Loss weights - tuned for anomaly detection
@@ -28,30 +28,30 @@ training:
   use_amp: true                     # Use automatic mixed precision for speed
   max_grad_norm: 1.0                # Gradient clipping
   
-  # REMOVED LIMITATIONS FOR PROPER LEARNING - these were killing your model's ability to learn:
-  # max_steps_per_epoch: 100        # ← REMOVED - was limiting to only 100 steps per epoch
-  # max_train_samples: 1600         # ← REMOVED - was limiting to only 1600 samples  
-  # max_val_samples: 400            # ← REMOVED - was limiting validation data
+  # REMOVED ALL LIMITATIONS FOR PROPER LEARNING:
+  # max_steps_per_epoch: 100        # ← REMOVED - was killing learning
+  # max_train_samples: 1600         # ← REMOVED - was way too small
+  # max_val_samples: 400            # ← REMOVED - insufficient validation
   
   # Early stopping
   patience: 8                       # Increased patience for better convergence
   
-  # Optimized data loading - MAJOR SPEED BOOST
-  num_workers: 8                    # Increased from 2 - parallel data loading
+  # A100-optimized data loading
+  num_workers: 16                   # A100 can handle more parallel workers
   
   # Checkpointing
-  save_every_n_epochs: 5            # Save less frequently (was 10)
+  save_every_n_epochs: 5            # Save less frequently
 
-# Data Configuration - Same as before but optimized
+# Data Configuration
 data:
   # Path to your processed data (will be overridden by command line if provided)
   processed_data_path: "/projects/JWST_planets/ilongo/processed_data/job_outputs"
   
-  # Data filtering - REMOVED LIMITATIONS for proper learning
+  # Data filtering - NO LIMITATIONS for proper learning
   patch_size: 128                   # Actual patch size in pixels from your HDF5 files
   min_anomaly_score: 1.0            # Minimum anomaly score threshold
-  # max_samples_per_job: 50         # ← REMOVED - use all available samples
-  # max_val_samples_per_job: 20     # ← REMOVED - use all validation samples
+  # max_samples_per_job: 50         # ← REMOVED - use ALL samples
+  # max_val_samples_per_job: 20     # ← REMOVED - use ALL validation
   
   # Data processing
   temporal_classification: true     # Use temporal classification
@@ -62,72 +62,71 @@ data:
   # Train/validation split
   val_split: 0.2                    # Fraction of job folders for validation
 
-# Advanced Data Loading Optimization - NEW SECTION
+# A100-Optimized Data Loading
 dataloader_settings:
-  num_workers: 8                    # Parallel data loading workers
+  num_workers: 16                   # More workers for A100
   pin_memory: true                  # Pin memory for faster GPU transfer
   persistent_workers: true          # Keep workers alive between epochs
-  prefetch_factor: 4                # Prefetch more batches
-  drop_last: false                  # Use all data, don't drop incomplete batches
+  prefetch_factor: 8                # More prefetching with A100's memory
+  drop_last: false                  # Use all data
 
-# Output Configuration - CHECKPOINTS SAVED TO /projects/ FOR LARGE FILES
+# Output Configuration
 output:
   # Main output directory (lightweight files like logs, config)
   output_dir: "./results/models"
   
-  # Large checkpoint directory - YOUR REQUESTED PATH
+  # Large checkpoint directory
   checkpoint_dir: "/projects/JWST_planets/ilongo/models"
   
   # Checkpoint settings
   save_model_every_epoch: false     # Save model every epoch (set false for speed)
-  save_best_only: false             # Save progress for analysis (changed from true)
+  save_best_only: false             # Save progress for analysis
   max_checkpoints_to_keep: 5        # Keep more checkpoints for analysis
 
-# Hardware Configuration
+# Hardware Configuration - A100 Optimized
 hardware:
   device: "cuda"                    # Device to use (cuda/cpu)
   mixed_precision: true             # Use mixed precision training
   
-# Logging and Monitoring - Enhanced for learning tracking
+# Logging and Monitoring
 logging:
   use_wandb: false                  # Set to true if you have wandb setup
   wandb_project: "h2rg-vit-vae"     # Wandb project name
-  log_every_n_steps: 25             # More frequent logging to monitor learning (was 50)
+  log_every_n_steps: 20             # Frequent logging for A100 speed
   
-# TRAINING PRESETS - BALANCED TRAINING ENABLED FOR QUALITY + SPEED
+# TRAINING PRESETS - BALANCED ENABLED FOR QUALITY + A100 SPEED
 
-# Ultra Fast (for quick testing - 10-15 minutes)
+# Ultra Fast (for quick testing)
 fast_training:
-  enabled: false                    # Disabled - too fast for proper learning
+  enabled: false
   max_epochs: 10
   max_steps_per_epoch: 50
   max_train_samples: 2000
   max_val_samples: 500
-  batch_size: 16
+  batch_size: 32                    # Increased for A100
   num_layers: 4
 
-# Balanced (good quality in ~30-45 minutes) - ENABLED FOR OPTIMAL LEARNING
+# Balanced (ENABLED - perfect for A100)
 balanced_training:
-  enabled: true                     # ← ENABLED - perfect balance of speed and learning
+  enabled: true                     # ← ENABLED for optimal learning
   max_epochs: 30                    # Good learning duration
-  max_steps_per_epoch: null         # Use full dataset each epoch (was 200)
-  max_train_samples: null           # Use all training data (was 8000)
-  max_val_samples: null             # Use all validation data (was 2000)
-  batch_size: 16                    # Optimized batch size (increased from 8)
+  max_steps_per_epoch: null         # Use FULL dataset each epoch
+  max_train_samples: null           # Use ALL training data
+  max_val_samples: null             # Use ALL validation data
+  batch_size: 32                    # A100-optimized batch size
   num_layers: 6                     # Good for learning
 
-# Quality (best results in 1-2 hours)
+# Quality (for even better results if you have time)
 quality_training:
-  enabled: false                    # Disabled - too slow for your timeline
-  max_epochs: 100
+  enabled: false                    # Disabled for now
+  max_epochs: 50
   max_steps_per_epoch: null
   max_train_samples: null
   max_val_samples: null
-  batch_size: 4
+  batch_size: 16                    # Smaller for stability
   num_layers: 8
 
 # Anomaly Classification Labels
-# These correspond to your temporal classification system
 anomaly_classes:
   0: "normal"
   1: "snowball"                     # Medium size, circular, sudden appearance, high persistence
@@ -135,21 +134,21 @@ anomaly_classes:
   3: "telegraph"                    # Small, isolated, sudden appearance, lower persistence
   4: "hot_pixel"                    # Present from frame 0, high persistence
 
-# Advanced Configuration - GPU and Memory Optimizations
+# Advanced Configuration - A100 GPU Optimizations
 advanced:
   # Memory optimization
-  gradient_accumulation_steps: 1    # Start with 1, increase if batch size too small
+  gradient_accumulation_steps: 1    # Start with 1 for A100
   dataloader_pin_memory: true       # Pin memory for faster GPU transfer
   
-  # Model optimization - ENABLE COMPILATION FOR SPEED
-  compile_model: true               # Enable torch.compile for 20-30% speedup (was false)
+  # Model optimization
+  compile_model: true               # Enable torch.compile for 20-30% speedup
   
   # Distributed training (if using multiple GPUs)
   distributed: false
   world_size: 1
   rank: 0
   
-  # Checkpoint compression (to save space)
+  # Checkpoint compression
   compress_checkpoints: true        # Compress checkpoint files
 
 # Resume Training
@@ -158,30 +157,36 @@ resume:
   resume_optimizer: true            # Resume optimizer state
   resume_scheduler: true            # Resume learning rate scheduler
 
-# Evaluation - More frequent for learning monitoring
+# Evaluation - Frequent monitoring for A100 speed
 evaluation:
-  eval_every_n_epochs: 3            # More frequent validation (was 5)
+  eval_every_n_epochs: 3            # More frequent validation
   compute_metrics: true             # Compute additional metrics
-  save_predictions: false           # Save predictions for analysis (uses disk space)
+  save_predictions: false           # Save predictions for analysis
 
-# Memory and Performance Tips
-# OPTIMIZED SETTINGS:
-# ✅ Full dataset usage - no artificial limits
-# ✅ Balanced training enabled - 30-45 minute quality training
-# ✅ Parallel data loading - 8 workers eliminate I/O bottlenecks  
-# ✅ Model compilation enabled - 20-30% speed boost
-# ✅ Proper batch size and learning rate scaling
-# ✅ Sufficient epochs for convergence
-# ✅ Mixed precision for memory efficiency
+# A100 80GB OPTIMIZATIONS SUMMARY:
+# ✅ Batch size 32 (can try 48 or 64 if this works)
+# ✅ 16 data loading workers (maximizes A100's bandwidth)
+# ✅ Prefetch factor 8 (more prefetching with large memory)
+# ✅ No sample limitations (use full dataset)
+# ✅ Model compilation enabled (20-30% speedup)
+# ✅ Mixed precision (memory efficiency)
 
-# Expected Results:
-# - Training time: 30-45 minutes (instead of 1-2 hours)
-# - GPU utilization: 80-95% (instead of 30-50%)
-# - Learning quality: Full dataset, proper convergence
-# - Memory usage: Optimized with gradient checkpointing
+# EXPECTED A100 PERFORMANCE:
+# - Training time: 15-25 minutes (vs hours with old config)
+# - GPU utilization: 85-95%
+# - Memory usage: ~25-40GB out of 80GB
+# - Learning quality: Full dataset convergence
 
-# Performance Monitoring:
-# - Watch GPU usage: nvidia-smi -l 1
-# - Monitor validation loss - should decrease steadily
-# - If OOM: reduce batch_size to 12, then 8, then 4
-# - If GPU underutilized: increase num_workers to 12
+# PERFORMANCE TUNING FOR YOUR A100:
+# 1. If batch_size 32 works well, try 48 or 64
+# 2. Monitor GPU memory: nvidia-smi -l 1
+# 3. Target 60-70% memory usage for optimal performance
+# 4. If OOM: reduce batch_size to 24, then 16
+# 5. Watch validation loss - should decrease steadily
+
+# ADVANCED A100 SETTINGS (try if basic config works):
+# training:
+#   batch_size: 48                  # Even larger batches
+#   learning_rate: 12e-4            # Scale accordingly
+# dataloader_settings:
+#   num_workers: 24                 # Even more workers
