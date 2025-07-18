@@ -1,8 +1,3 @@
-"""
-Updated Training Data Loader for ViT-VAE
-Works with your current processed data structure in job_outputs
-"""
-
 import h5py
 import numpy as np
 import json
@@ -16,48 +11,35 @@ from .cache_manager import CacheManager
 
 class TrainingDataLoader:
     """
-    Updated training data loader that works with your job_outputs structure
-    Loads processed data for ViT-VAE training with filtering and batching capabilities
+        * loads processed data for ViT-VAE training with filtering and batching capabilities
     """
-    
     def __init__(self, cache_manager: CacheManager = None, job_outputs_dir: str = None):
         """
-        Initialize with either cache_manager (legacy) or job_outputs_dir (new)
+            * initialize with either cache_manager (legacy) or job_outputs_dir (new)
         """
         self.cache_manager = cache_manager
         self.job_outputs_dir = Path(job_outputs_dir) if job_outputs_dir else None
         self.logger = logging.getLogger(__name__)
         
-        # Use job_outputs structure if provided, otherwise fall back to cache_manager
+        # Check how the data was ran (array)
         if self.job_outputs_dir and self.job_outputs_dir.exists():
             self.use_job_structure = True
             self.logger.info(f"Using job outputs structure: {self.job_outputs_dir}")
+
+        # Data was not ran using an aray
         elif self.cache_manager:
             self.use_job_structure = False
             self.logger.info("Using legacy cache manager structure")
+
+        # Data was not preprocessed corectly
         else:
             raise ValueError("Must provide either job_outputs_dir or cache_manager")
     
-    def load_training_dataset(self, 
-                              dataset_type: Optional[str] = None,
-                              detector_id: Optional[str] = None,
-                              patch_size: int = 512,
-                              min_anomaly_score: float = 1.0,
-                              max_samples: Optional[int] = None,
-                              job_folders: Optional[List[str]] = None) -> Dict:
+    def load_training_dataset(self, dataset_type: Optional[str] = None, detector_id: Optional[str] = None,
+                              patch_size: int = 512, min_anomaly_score: float = 1.0,
+                              max_samples: Optional[int] = None, job_folders: Optional[List[str]] = None) -> Dict:
         """
-        Load processed data for training with filtering
-        
-        Args:
-            dataset_type: Filter by dataset type ('EUCLID', 'CASE', or None for all)
-            detector_id: Filter by detector ID (for CASE datasets)
-            patch_size: Patch size to load (128, 256, or 512)
-            min_anomaly_score: Minimum anomaly score threshold
-            max_samples: Maximum number of samples to load
-            job_folders: Specific job folders to load from (if None, uses all)
-        
-        Returns:
-            Dictionary containing loaded data
+            * load processed data for training with filtering
         """
         if self.use_job_structure:
             return self._load_from_job_structure(
@@ -69,15 +51,12 @@ class TrainingDataLoader:
                 dataset_type, detector_id, patch_size, min_anomaly_score
             )
     
-    def _load_from_job_structure(self,
-                                dataset_type: Optional[str],
-                                detector_id: Optional[str], 
-                                patch_size: int,
-                                min_anomaly_score: float,
-                                max_samples: Optional[int],
-                                job_folders: Optional[List[str]]) -> Dict:
-        """Load data from job_outputs directory structure"""
-        
+    def _load_from_job_structure(self, dataset_type: Optional[str], detector_id: Optional[str], 
+                                patch_size: int, min_anomaly_score: float,
+                                max_samples: Optional[int], job_folders: Optional[List[str]]) -> Dict:
+        """
+            * load data from job_outputs directory structure
+        """
         # Get available job folders
         if job_folders is None:
             available_folders = [f.name for f in self.job_outputs_dir.iterdir() if f.is_dir()]
@@ -98,7 +77,9 @@ class TrainingDataLoader:
         processed_folders = 0
         total_samples = 0
         
+        # Iterate through all folders
         for folder_name in tqdm(available_folders, desc="Loading job folders"):
+            # Create the path for the current folder
             folder_path = self.job_outputs_dir / folder_name
             
             if not folder_path.exists():
@@ -113,14 +94,15 @@ class TrainingDataLoader:
             
             # Apply detector filter for CASE datasets
             if detector_id and 'noise' in folder_name:
-                # For CASE datasets, detector info might be in the file names
-                pass  # Will check at file level
+                pass
             
             try:
+                # Load the current job folder
                 folder_data = self._load_job_folder(
                     folder_path, patch_size, min_anomaly_score, detector_id
                 )
                 
+                # Check if the folder data has samples
                 if folder_data['num_samples'] > 0:
                     all_patches.extend(folder_data['patches'])
                     all_anomaly_scores.extend(folder_data['anomaly_scores'])
@@ -130,10 +112,11 @@ class TrainingDataLoader:
                     all_frame_indices.extend(folder_data['frame_indices'])
                     all_metadata.extend(folder_data['metadata'])
                     
+                    # Update the total number of samples
                     total_samples += folder_data['num_samples']
                     processed_folders += 1
                     
-                    # Check if we've reached max samples
+                    # Check if max samples has been reached
                     if max_samples and total_samples >= max_samples:
                         break
                         
@@ -172,16 +155,15 @@ class TrainingDataLoader:
         self.logger.info(f"Loaded {total_samples} samples from {processed_folders} folders")
         return result
     
-    def _load_job_folder(self, 
-                        folder_path: Path, 
-                        patch_size: int, 
-                        min_anomaly_score: float,
-                        detector_id: Optional[str]) -> Dict:
-        """Load data from a single job folder"""
-        
+    def _load_job_folder(self, folder_path: Path, patch_size: int, 
+                        min_anomaly_score: float, detector_id: Optional[str]) -> Dict:
+        """
+            * load data from a single job folder
+        """
         # Find patch files for the requested patch size
         patch_files = list(folder_path.glob(f"*_patches_{patch_size}.h5"))
         
+        # Initialize variable 
         patches = []
         anomaly_scores = []
         temporal_labels = []
@@ -190,11 +172,12 @@ class TrainingDataLoader:
         frame_indices = []
         metadata = []
         
+        # Iterate through all patch files
         for patch_file in patch_files:
-            # Extract base name
+            # Grab the base name
             base_name = patch_file.stem.replace(f"_patches_{patch_size}", "")
             
-            # Apply detector filter
+            # See if detector is in the base name (case check)
             if detector_id:
                 if detector_id.lower() not in base_name.lower():
                     continue
@@ -203,12 +186,13 @@ class TrainingDataLoader:
             temporal_file = folder_path / f"{base_name}_temporal.h5"
             metadata_file = folder_path / f"{base_name}_metadata.json"
             
+            # Check if the file exists
             if not temporal_file.exists():
                 self.logger.warning(f"Missing temporal file for {base_name}")
                 continue
             
             try:
-                # Load patch data
+                # Load the patch data
                 with h5py.File(patch_file, 'r') as f:
                     patch_data = f['patches'][:]
                     anomaly_data = f['anomaly_scores'][:]
@@ -232,6 +216,7 @@ class TrainingDataLoader:
                 valid_mask = anomaly_data >= min_anomaly_score
                 valid_indices = np.where(valid_mask)[0]
                 
+                # Check if there were any anomalies 
                 if len(valid_indices) == 0:
                     continue
                 
@@ -245,12 +230,13 @@ class TrainingDataLoader:
                 valid_positions = []
                 valid_frame_indices = []
                 
+                # Iterate through all anomalies 
                 for idx in valid_indices:
                     # Get position for temporal analysis
                     if position_data is not None:
                         pos = position_data[idx]
                     else:
-                        pos = (0, 0)  # Default position
+                        pos = (0, 0)
                     
                     # Get frame index
                     frame_idx = frame_data[idx] if frame_data is not None else 0
@@ -304,18 +290,14 @@ class TrainingDataLoader:
             'num_samples': len(patches)
         }
     
-    def _classify_temporal_pattern(self, 
-                                 first_appearance: np.ndarray,
-                                 persistence_count: np.ndarray, 
-                                 position: Tuple[int, int],
-                                 anomaly_score: float) -> int:
+    def _classify_temporal_pattern(self, first_appearance: np.ndarray, persistence_count: np.ndarray, 
+                                   position: Tuple[int, int], anomaly_score: float) -> int:
         """
-        Classify temporal pattern based on your analysis
-        Returns: 0=normal, 1=snowball, 2=cosmic_ray, 3=telegraph, 4=hot_pixel
+            * classify temporal pattern based on your analysis
         """
         # Get local temporal info around the position
         y, x = position
-        patch_size = 32  # Approximate patch size in temporal map coordinates
+        patch_size = 32 
         
         # Extract local region
         y_start = max(0, y - patch_size//2)
@@ -323,9 +305,11 @@ class TrainingDataLoader:
         x_start = max(0, x - patch_size//2)  
         x_end = min(first_appearance.shape[1], x + patch_size//2)
         
+        # Check if there was an anomally 
         if y_end <= y_start or x_end <= x_start:
-            return 0  # Normal if no valid region
+            return 0  
         
+        # Grab the patch
         local_first = first_appearance[y_start:y_end, x_start:x_end]
         local_persist = persistence_count[y_start:y_end, x_start:x_end]
         

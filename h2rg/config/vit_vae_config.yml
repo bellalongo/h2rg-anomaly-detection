@@ -15,9 +15,9 @@ model:
 # Training Configuration
 training:
   # Basic training parameters
-  max_epochs: 50                    # Maximum training epochs (adjust based on time available)
-  batch_size: 8                     # Batch size (adjust based on GPU memory)
-  learning_rate: 1e-4               # Initial learning rate
+  max_epochs: 20                    # Maximum training epochs (adjust based on time available)
+  batch_size: 16                     # Batch size (adjust based on GPU memory)
+  learning_rate: 2e-4               # Initial learning rate
   weight_decay: 1e-5                # Weight decay for regularization
   
   # Loss weights
@@ -29,18 +29,18 @@ training:
   max_grad_norm: 1.0                # Gradient clipping
   
   # Fast training options
-  max_steps_per_epoch: 200          # Limit steps per epoch for faster training
-  max_train_samples: 5000           # Limit total training samples
-  max_val_samples: 1000             # Limit validation samples
+  max_steps_per_epoch: 100          # Limit steps per epoch for faster training
+  max_train_samples: 1600           # Limit total training samples
+  max_val_samples: 400             # Limit validation samples
   
   # Early stopping
-  patience: 10                      # Early stopping patience
+  patience: 5                      # Early stopping patience
   
   # Data loading
-  num_workers: 4                    # Number of data loading workers
+  num_workers: 2                    # Number of data loading workers
   
   # Checkpointing
-  save_every_n_epochs: 5            # Save checkpoint every N epochs
+  save_every_n_epochs: 10            # Save checkpoint every N epochs
 
 # Data Configuration
 data:
@@ -101,7 +101,7 @@ fast_training:
 
 # Balanced (good quality in ~30-45 minutes) - RECOMMENDED FOR END OF INTERNSHIP
 balanced_training:
-  enabled: true                     # ← ENABLED BY DEFAULT
+  enabled: false                     # ← ENABLED BY DEFAULT
   max_epochs: 30
   max_steps_per_epoch: 200
   max_train_samples: 8000
